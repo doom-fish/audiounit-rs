@@ -1,0 +1,3 @@
+#ifndef AUDIOUNIT_BRIDGE_H
+#define AUDIOUNIT_BRIDGE_H
+#endif
