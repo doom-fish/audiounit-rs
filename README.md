@@ -1,8 +1,8 @@
 # audiounit-rs
 
-Safe Rust bindings for Apple's **`AudioUnit`** / **`AVAudioUnit`** APIs on macOS.
+Safe Rust bindings for Apple's **`AudioUnit`** / **`AVFAudio`** APIs on macOS.
 
-> **Status:** v0.1.0 covers component enumeration, `AVAudioUnit` synchronous instantiation, `AUParameterTree` introspection, legacy `AudioUnit` C property/parameter wrappers, and `AudioComponentDescription` type/manufacturer constants.
+> **Status:** v0.2.0 extends the Swift bridge and safe Rust API across `AUAudioUnit`, `AUAudioUnitBus`, `AUAudioUnitBusArray`, `AUParameter`, `AUParameterTree`, `AUParameterGroup`, `AUAudioUnitFactory`, `AUAudioUnitV2Bridge`, `AVAudioUnitEffect`, `AVAudioUnitGenerator`, `AVAudioUnitMIDIInstrument`, `AUVoiceIO`, plus an `AVAudioUnitInstrument` compatibility alias.
 
 ## Quick start
 
@@ -10,61 +10,77 @@ Safe Rust bindings for Apple's **`AudioUnit`** / **`AVAudioUnit`** APIs on macOS
 use audiounit::prelude::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Enumerate all installed components.
     let components = ComponentManager::components_matching(AudioComponentDescription::any())?;
     println!("installed components: {}", components.len());
 
-    for c in components.iter().take(5) {
-        println!("  {} — {} / {}", c.name(), c.type_name(), c.manufacturer_name());
-    }
+    let unit = AuAudioUnit::instantiate(
+        AudioComponentDescription::apple(
+            AUDIO_UNIT_TYPE_OUTPUT,
+            AUDIO_UNIT_SUBTYPE_DEFAULT_OUTPUT,
+        ),
+        InstantiationOptions::InProcess,
+    )?;
 
-    // Instantiate Apple's default output unit.
-    let desc = AudioComponentDescription::new(
-        AUDIO_UNIT_TYPE_OUTPUT,
-        AUDIO_UNIT_SUBTYPE_DEFAULT_OUTPUT,
-        AUDIO_UNIT_MANUFACTURER_APPLE,
-    );
-    let unit = AvAudioUnit::instantiate(desc, InstantiationOptions::InProcess)?;
-    println!("legacy AudioUnit ptr: {:?}", unit.audio_unit_ptr());
+    let info = unit.info()?;
+    println!("AUAudioUnit: {:?}", info.audio_unit_name);
 
     if let Some(tree) = unit.parameter_tree() {
-        println!("parameter tree: {}", tree.to_json());
+        println!("parameter tree bytes: {}", tree.to_json().len());
     }
+
+    let effect = AvAudioUnitEffect::new(AudioComponentDescription::apple(
+        AUDIO_UNIT_TYPE_EFFECT,
+        AUDIO_UNIT_SUBTYPE_PEAK_LIMITER,
+    ))?;
+    println!("effect bypass: {}", effect.bypass());
     Ok(())
 }
 ```
 
 ## Highlights
 
-### Component enumeration
-- `ComponentManager::components_matching(AudioComponentDescription)` — wraps `AVAudioUnitComponentManager`
-- `AudioUnitComponent` — `name`, `type_name`, `manufacturer_name`, `version`, `version_string`, `has_custom_view`, `is_sandbox_safe`, `audio_component_description`, `tags`
+### `AUAudioUnit` core
+- `AuAudioUnit::instantiate(desc, options)` — synchronous wrapper around `AUAudioUnit.instantiate`.
+- `AuAudioUnit::info()` — snapshot component metadata, render flags, presets, channel maps, MIDI protocol hints, and bus counts.
+- `allocate_render_resources`, `deallocate_render_resources`, `reset`, `parameters_for_overview`, `set_context_name`, `set_current_preset`, `set_channel_map`.
+- `input_busses()` / `output_busses()` returning typed `AuAudioUnitBusArray` handles.
 
-### Instantiation
-- `AvAudioUnit::instantiate(desc, options)` — sync blocking wrapper around `+instantiateWithComponentDescription:options:completionHandler:`
-- `AvAudioUnit::audio_unit_ptr()` — legacy `AudioUnit` raw handle
-- `AvAudioUnit::au_audio_unit()` — modern `AUAudioUnit` handle
+### Busses and formats
+- `AuAudioUnitBusArray` — enumerate bus counts, inspect array metadata, and change bus count where the host AU allows it.
+- `AuAudioUnitBus` — inspect `AVAudioFormat` snapshots, `should_allocate_buffer`, `enabled`, `name`, supported channel-layout tags, and context latency.
 
-### Parameter tree
-- `AvAudioUnit::parameter_tree()` → `AuParameterTree`
-- `AuParameterTree::to_json()` — full tree as JSON
-- `AuParameterTree::parameter_with_address(addr)` → `AuParameter`
-- `AuParameter` — `identifier`, `display_name`, `address`, `min_value`, `max_value`, `unit`, `value`, `set_value`, `string_from_value`
+### Parameters
+- `AuParameterTree::info()` / `to_json()` — full recursive tree snapshots.
+- `AuParameterTree::parameter_with_address` and `parameter_with_id` for AUv2 parameters.
+- `AuParameterGroup::children()` / `all_parameters()`.
+- `AuParameter` — identifier/display-name access, value get/set, host-time setters, and string conversion helpers.
 
-### Legacy C API
-- `audio_unit_get_property_info`, `audio_unit_get_property`, `audio_unit_set_property`
-- `audio_unit_get_parameter`, `audio_unit_set_parameter`
-- `audio_unit_set_render_callback` — registers an `AURenderCallback`
-- `AURenderCallbackStruct`, `AudioStreamBasicDescription`, `AudioBufferList`
+### Factories, bridges, and voice I/O
+- `AuAudioUnitFactory` — bridge-backed helper mirroring `AUAudioUnitFactory` creation semantics.
+- `AuAudioUnitV2Bridge` — cast modern units back to their underlying v2 `AudioUnit` handles when available.
+- `AuVoiceIo` / `AuVoiceIO` — instantiate `kAudioUnitSubType_VoiceProcessingIO` and control bypass, AGC, mute, and ducking configuration.
 
-### Constants
-- Type: `AUDIO_UNIT_TYPE_OUTPUT`, `MUSIC_DEVICE`, `MUSIC_EFFECT`, `EFFECT`, `MIXER`, `PANNER`, `GENERATOR`, `FORMAT_CONVERTER`, `OFFLINE_EFFECT`, `MIDI_PROCESSOR`
-- Manufacturer: `AUDIO_UNIT_MANUFACTURER_APPLE`
-- Subtypes: `DEFAULT_OUTPUT`, `SYSTEM_OUTPUT`, `HAL_OUTPUT`, `DLS_SYNTH`, `SAMPLER`, …
+### `AVAudioUnit` subclasses
+- `AvAudioUnit` — generic synchronous instantiation, metadata snapshots, raw `AudioUnit` access, and preset-loading stub reporting.
+- `AvAudioUnitEffect` — create AUv2 effects and toggle `bypass`.
+- `AvAudioUnitGenerator` — create AUv2 generators and toggle `bypass`.
+- `AvAudioUnitMidiInstrument` / `AvAudioUnitMIDIInstrument` — create Apple music devices and send note/controller/program/SysEx events.
+- `AvAudioUnitInstrument` — compatibility alias to the public `AvAudioUnitMidiInstrument` surface because current macOS SDKs do not expose a separate public `AVAudioUnitInstrument` class.
+
+### Legacy C API + enumeration
+- `ComponentManager::components_matching(AudioComponentDescription)` — wraps `AVAudioUnitComponentManager`.
+- `AudioUnitComponent` — `name`, `type_name`, `manufacturer_name`, `version`, `version_string`, `has_custom_view`, `is_sandbox_safe`, `audio_component_description`, `tags`.
+- Legacy raw C helpers remain available: `audio_unit_get_property_info`, `audio_unit_get_property`, `audio_unit_set_property`, `audio_unit_get_parameter`, `audio_unit_set_parameter`, `audio_unit_set_render_callback`.
+
+## Examples and tests
+
+- `examples/01_list_components.rs` plus `02`–`14` cover every logical area above.
+- `tests/*_tests.rs` provide smoke coverage for all newly-added areas.
+- `COVERAGE.md` summarizes the audited logical-area surface for v0.2.0.
 
 ## Availability
 
-macOS 13+ (due to Swift bridge platform requirement).
+macOS 13+ (matching the Swift bridge deployment target).
 
 ## License
 
