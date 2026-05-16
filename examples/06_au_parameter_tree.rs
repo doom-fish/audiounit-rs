@@ -11,7 +11,11 @@ fn main() -> Result<(), AuError> {
         .parameter_tree()
         .ok_or_else(|| AuError::Unavailable("default output had no parameter tree".to_owned()))?;
     let info = tree.info()?;
-    println!("parameter tree kind={} children={}", info.kind, info.children.len());
+    println!(
+        "parameter tree kind={} children={}",
+        info.kind,
+        info.children.len()
+    );
     println!("json bytes={}", tree.to_json().len());
     Ok(())
 }

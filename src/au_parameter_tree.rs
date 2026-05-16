@@ -32,6 +32,42 @@ pub struct AuParameterNodeInfo {
     pub value: Option<f32>,
 }
 
+/// Opaque token returned by `AUParameterNode` observer registration methods.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AuParameterObserverToken {
+    raw: *mut c_void,
+}
+
+unsafe impl Send for AuParameterObserverToken {}
+unsafe impl Sync for AuParameterObserverToken {}
+
+/// One captured `AUParameterObserver` callback.
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+pub struct AuParameterValueEvent {
+    pub address: u64,
+    pub value: f32,
+}
+
+/// One captured `AURecordedParameterEvent`.
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+pub struct AuRecordedParameterEventInfo {
+    #[serde(rename = "hostTime")]
+    pub host_time: u64,
+    pub address: u64,
+    pub value: f32,
+}
+
+/// One captured `AUParameterAutomationEvent`.
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+pub struct AuParameterAutomationEventInfo {
+    #[serde(rename = "hostTime")]
+    pub host_time: u64,
+    pub address: u64,
+    pub value: f32,
+    #[serde(rename = "eventType")]
+    pub event_type: u32,
+}
+
 /// Owned handle to an `AUParameterTree`.
 pub struct AuParameterTree {
     ptr: *mut c_void,
@@ -93,5 +129,85 @@ impl AuParameterTree {
     pub fn root_group(&self) -> AuParameterGroup {
         let ptr = unsafe { ffi::au_parameter_tree_root_group(self.ptr) };
         AuParameterGroup::from_raw(ptr)
+    }
+
+    /// Install a capture-backed value observer on the tree root.
+    pub fn add_parameter_observer_capture(&self) -> Result<AuParameterObserverToken, AuError> {
+        let token = unsafe { ffi::au_parameter_tree_add_parameter_observer_capture(self.ptr) };
+        if token.is_null() {
+            Err(AuError::Unavailable(
+                "AUParameter observer token was null".to_owned(),
+            ))
+        } else {
+            Ok(AuParameterObserverToken { raw: token })
+        }
+    }
+
+    /// Install a capture-backed recording observer on the tree root.
+    pub fn add_parameter_recording_observer_capture(
+        &self,
+    ) -> Result<AuParameterObserverToken, AuError> {
+        let token =
+            unsafe { ffi::au_parameter_tree_add_parameter_recording_observer_capture(self.ptr) };
+        if token.is_null() {
+            Err(AuError::Unavailable(
+                "AUParameter recording observer token was null".to_owned(),
+            ))
+        } else {
+            Ok(AuParameterObserverToken { raw: token })
+        }
+    }
+
+    /// Install a capture-backed automation observer on the tree root.
+    pub fn add_parameter_automation_observer_capture(
+        &self,
+    ) -> Result<AuParameterObserverToken, AuError> {
+        let token =
+            unsafe { ffi::au_parameter_tree_add_parameter_automation_observer_capture(self.ptr) };
+        if token.is_null() {
+            Err(AuError::Unavailable(
+                "AUParameter automation observer token was null".to_owned(),
+            ))
+        } else {
+            Ok(AuParameterObserverToken { raw: token })
+        }
+    }
+
+    /// Drain the captured value-observer events for a token.
+    pub fn take_parameter_observer_events(
+        &self,
+        token: AuParameterObserverToken,
+    ) -> Result<Vec<AuParameterValueEvent>, AuError> {
+        let ptr = unsafe {
+            ffi::au_parameter_tree_take_parameter_observer_events_json(self.ptr, token.raw)
+        };
+        take_json(ptr)
+    }
+
+    /// Drain the captured recording-observer events for a token.
+    pub fn take_parameter_recording_events(
+        &self,
+        token: AuParameterObserverToken,
+    ) -> Result<Vec<AuRecordedParameterEventInfo>, AuError> {
+        let ptr = unsafe {
+            ffi::au_parameter_tree_take_parameter_recording_events_json(self.ptr, token.raw)
+        };
+        take_json(ptr)
+    }
+
+    /// Drain the captured automation-observer events for a token.
+    pub fn take_parameter_automation_events(
+        &self,
+        token: AuParameterObserverToken,
+    ) -> Result<Vec<AuParameterAutomationEventInfo>, AuError> {
+        let ptr = unsafe {
+            ffi::au_parameter_tree_take_parameter_automation_events_json(self.ptr, token.raw)
+        };
+        take_json(ptr)
+    }
+
+    /// Remove a previously registered tree observer token.
+    pub fn remove_parameter_observer(&self, token: AuParameterObserverToken) {
+        unsafe { ffi::au_parameter_tree_remove_parameter_observer(self.ptr, token.raw) };
     }
 }

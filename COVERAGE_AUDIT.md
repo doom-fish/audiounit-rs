@@ -5,10 +5,10 @@ Scope note: `AudioUnit.framework` in MacOSX26.2.sdk is a thin umbrella that reex
 Sampling note: the combined `AudioUnit.framework` + `AVFAudio.framework` AUAudioUnit-family surface is large, so this audit samples **173 high-signal public symbols** across modern `AUAudioUnit` / parameter APIs, legacy `AudioUnit` / `MusicDevice` control APIs, VoiceProcessing I/O properties, and the `AVAudioUnit` family.
 
 SDK_PUBLIC_SYMBOLS: 173
-VERIFIED: 113
-GAPS: 56
-EXEMPT: 4
-COVERAGE_PCT: 66.86%
+VERIFIED: 168
+GAPS: 0
+EXEMPT: 5
+COVERAGE_PCT: 100.00%
 
 ## 🟢 VERIFIED
 | Symbol | Kind | Header | Wrapped by |
@@ -126,67 +126,64 @@ COVERAGE_PCT: 66.86%
 | `AVAudioUnitMIDIInstrument.sendProgramChange:bankMSB:bankLSB:onChannel:` | method | `AVAudioUnitMIDIInstrument.h` | `AvAudioUnitMidiInstrument::send_program_change_bank` |
 | `AVAudioUnitMIDIInstrument.sendMIDISysExEvent:` | method | `AVAudioUnitMIDIInstrument.h` | `AvAudioUnitMidiInstrument::send_sysex` |
 | `AVAudioUnitMIDIInstrument.sendMIDIEventList:` | method | `AVAudioUnitMIDIInstrument.h` | `AvAudioUnitMidiInstrument::send_event_list_raw` |
-
+| `AudioComponentInstanceNew` | function | `AudioComponent.h` | `legacy::audio_component_instance_new` |
+| `AudioComponentInstanceDispose` | function | `AudioComponent.h` | `legacy::audio_component_instance_dispose` |
+| `AudioOutputUnitStart` | function | `AudioOutputUnit.h` | `legacy::audio_output_unit_start` |
+| `AudioOutputUnitStop` | function | `AudioOutputUnit.h` | `legacy::audio_output_unit_stop` |
+| `AudioUnitInitialize` | function | `AudioUnit.h` | `legacy::audio_unit_initialize` |
+| `AudioUnitUninitialize` | function | `AudioUnit.h` | `legacy::audio_unit_uninitialize` |
+| `AudioUnitRender` | function | `AudioUnit.h` | `legacy::audio_unit_render` |
+| `AudioUnitAddPropertyListener` | function | `AudioUnit.h` | `legacy::audio_unit_add_property_listener` |
+| `AudioUnitRemovePropertyListenerWithUserData` | function | `AudioUnit.h` | `legacy::audio_unit_remove_property_listener_with_user_data` |
+| `AudioUnitScheduleParameters` | function | `AudioUnit.h` | `legacy::audio_unit_schedule_parameters` |
+| `MusicDeviceMIDIEvent` | function | `MusicDevice.h` | `legacy::music_device_midi_event` |
+| `MusicDeviceMIDIEventList` | function | `MusicDevice.h` | `legacy::music_device_midi_event_list_raw` |
+| `MusicDeviceStartNote` | function | `MusicDevice.h` | `legacy::music_device_start_note` |
+| `MusicDeviceStopNote` | function | `MusicDevice.h` | `legacy::music_device_stop_note` |
+| `MusicDeviceSysEx` | function | `MusicDevice.h` | `legacy::music_device_sysex` |
+| `AUAudioUnit.component` | property | `AUAudioUnit.h` | `AuAudioUnit::component_ptr` |
+| `AUAudioUnit.renderBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::render` |
+| `AUAudioUnit.scheduleParameterBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::schedule_parameter` |
+| `AUAudioUnit.tokenByAddingRenderObserver:` | method | `AUAudioUnit.h` | `AuAudioUnit::add_render_observer_capture` |
+| `AUAudioUnit.removeRenderObserver:` | method | `AUAudioUnit.h` | `AuAudioUnit::remove_render_observer` |
+| `AUAudioUnit.scheduleMIDIEventBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::schedule_midi_event` |
+| `AUAudioUnit.scheduleMIDIEventListBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::schedule_midi_event_list_raw` |
+| `AUAudioUnit.MIDIOutputEventBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::set_midi_output_event_capture_enabled and take_captured_midi_output_events` |
+| `AUAudioUnit.MIDIOutputEventListBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::set_midi_output_event_list_capture_enabled and take_captured_midi_output_event_lists` |
+| `AUAudioUnit.musicalContextBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::set_musical_context and musical_context` |
+| `AUAudioUnit.transportStateBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::set_transport_state and transport_state` |
+| `AUAudioUnit.profileStateForCable:channel:` | method | `AUAudioUnit.h` | `AuAudioUnit::profile_state_for_cable_channel` |
+| `AUAudioUnit.enableProfile:cable:onChannel:error:` | method | `AUAudioUnit.h` | `AuAudioUnit::enable_profile` |
+| `AUAudioUnit.disableProfile:cable:onChannel:error:` | method | `AUAudioUnit.h` | `AuAudioUnit::disable_profile` |
+| `AUAudioUnit.messageChannelFor:` | method | `AUAudioUnit.h` | `AuAudioUnit::message_channel and AuMessageChannel::call_audio_unit_json` |
+| `AUAudioUnit.canPerformInput` | property | `AUAudioUnit.h` | `AuAudioUnit::can_perform_input` |
+| `AUAudioUnit.canPerformOutput` | property | `AUAudioUnit.h` | `AuAudioUnit::can_perform_output` |
+| `AUAudioUnit.setDeviceID:error:` | method | `AUAudioUnit.h` | `AuAudioUnit::set_device_id` |
+| `AUAudioUnit.startHardwareAndReturnError:` | method | `AUAudioUnit.h` | `AuAudioUnit::start_hardware` |
+| `AUAudioUnit.stopHardware` | method | `AUAudioUnit.h` | `AuAudioUnit::stop_hardware` |
+| `AUParameterNode.tokenByAddingParameterObserver:` | method | `AUParameters.h` | `AuParameterTree::add_parameter_observer_capture` |
+| `AUParameterNode.tokenByAddingParameterRecordingObserver:` | method | `AUParameters.h` | `AuParameterTree::add_parameter_recording_observer_capture` |
+| `AUParameterNode.tokenByAddingParameterAutomationObserver:` | method | `AUParameters.h` | `AuParameterTree::add_parameter_automation_observer_capture` |
+| `AUParameterNode.removeParameterObserver:` | method | `AUParameters.h` | `AuParameterTree::remove_parameter_observer` |
+| `AVAudioUnit.loadAudioUnitPresetAtURL:error:` | method | `AVAudioUnit.h` | `AvAudioUnit::load_audio_unit_preset` |
+| `AVAudioUnitComponentManager.componentsMatchingPredicate:` | method | `AVAudioUnitComponent.h` | `ComponentManager::components_matching_predicate` |
+| `AVAudioUnitComponentManager.componentsPassingTest:` | method | `AVAudioUnitComponent.h` | `ComponentManager::components_passing_test` |
+| `AVAudioUnitSampler` | class | `AVAudioUnitSampler.h` | `AvAudioUnitSampler` |
+| `AVAudioUnitEQ` | class | `AVAudioUnitEQ.h` | `AvAudioUnitEQ` |
+| `AVAudioUnitDelay` | class | `AVAudioUnitDelay.h` | `AvAudioUnitDelay` |
+| `AVAudioUnitDistortion` | class | `AVAudioUnitDistortion.h` | `AvAudioUnitDistortion` |
+| `AVAudioUnitReverb` | class | `AVAudioUnitReverb.h` | `AvAudioUnitReverb` |
+| `AVAudioUnitTimeEffect` | class | `AVAudioUnitTimeEffect.h` | `AvAudioUnitTimeEffect` |
+| `AVAudioUnitTimePitch` | class | `AVAudioUnitTimePitch.h` | `AvAudioUnitTimePitch` |
+| `AVAudioUnitVarispeed` | class | `AVAudioUnitVarispeed.h` | `AvAudioUnitVarispeed` |
+| `AVAudioUnitComponent.userTagNames` | property | `AVAudioUnitComponent.h` | `AudioUnitComponent::user_tag_names and set_user_tag_names` |
+| `AVAudioUnitComponent.allTagNames` | property | `AVAudioUnitComponent.h` | `AudioUnitComponent::all_tag_names` |
+| `AVAudioUnitComponent.availableArchitectures` | property | `AVAudioUnitComponent.h` | `AudioUnitComponent::available_architectures` |
+| `AVAudioUnitComponent.configurationDictionary` | property | `AVAudioUnitComponent.h` | `AudioUnitComponent::configuration_dictionary` |
+| `AVAudioUnitComponent.supportsNumberInputChannels:outputChannels:` | method | `AVAudioUnitComponent.h` | `AudioUnitComponent::supports_number_input_channels` |
 ## 🔴 GAPS
 | Symbol | Kind | Header | Notes |
 | --- | --- | --- | --- |
-| `AudioComponentInstanceNew` | function | `AudioComponent.h` | No direct raw component instantiation lifecycle on the public Rust surface |
-| `AudioComponentInstanceDispose` | function | `AudioComponent.h` | No direct raw component instantiation lifecycle on the public Rust surface |
-| `AudioOutputUnitStart` | function | `AudioOutputUnit.h` | No explicit start helper for legacy output units |
-| `AudioOutputUnitStop` | function | `AudioOutputUnit.h` | No explicit stop helper for legacy output units |
-| `AudioUnitInitialize` | function | `AudioUnit.h` | Legacy initialize and uninitialize are not wrapped |
-| `AudioUnitUninitialize` | function | `AudioUnit.h` | Legacy initialize and uninitialize are not wrapped |
-| `AudioUnitRender` | function | `AudioUnit.h` | No render invocation wrapper beyond property-based callback setup |
-| `AudioUnitAddPropertyListener` | function | `AudioUnit.h` | Property listener registration is not exposed |
-| `AudioUnitRemovePropertyListenerWithUserData` | function | `AudioUnit.h` | Property listener removal is not exposed |
-| `AudioUnitScheduleParameters` | function | `AudioUnit.h` | No raw parameter scheduling wrapper |
-| `MusicDeviceMIDIEvent` | function | `MusicDevice.h` | No raw MusicDevice C API exposure |
-| `MusicDeviceMIDIEventList` | function | `MusicDevice.h` | No raw MusicDevice MIDI 2.0 event-list wrapper |
-| `MusicDeviceStartNote` | function | `MusicDevice.h` | No raw MusicDevice note lifecycle wrapper |
-| `MusicDeviceStopNote` | function | `MusicDevice.h` | No raw MusicDevice note lifecycle wrapper |
-| `MusicDeviceSysEx` | function | `MusicDevice.h` | No raw MusicDevice SysEx wrapper |
-| `AUAudioUnit.component` | property | `AUAudioUnit.h` | Raw AudioComponent handle is not exposed |
-| `AUAudioUnit.renderBlock` | property | `AUAudioUnit.h` | Info snapshot reports presence only; render block is not exposed |
-| `AUAudioUnit.scheduleParameterBlock` | property | `AUAudioUnit.h` | Info snapshot reports presence only; scheduleParameterBlock is not exposed |
-| `AUAudioUnit.tokenByAddingRenderObserver:` | method | `AUAudioUnit.h` | Render observer token lifecycle is not exposed |
-| `AUAudioUnit.removeRenderObserver:` | method | `AUAudioUnit.h` | Render observer token lifecycle is not exposed |
-| `AUAudioUnit.scheduleMIDIEventBlock` | property | `AUAudioUnit.h` | Info snapshot reports presence only; MIDI scheduling block is not exposed |
-| `AUAudioUnit.scheduleMIDIEventListBlock` | property | `AUAudioUnit.h` | Info snapshot reports presence only; MIDI event-list block is not exposed |
-| `AUAudioUnit.MIDIOutputEventBlock` | property | `AUAudioUnit.h` | Host MIDI output block is not exposed |
-| `AUAudioUnit.MIDIOutputEventListBlock` | property | `AUAudioUnit.h` | Host MIDI output event-list block is not exposed |
-| `AUAudioUnit.musicalContextBlock` | property | `AUAudioUnit.h` | Host musical context callbacks are not exposed |
-| `AUAudioUnit.transportStateBlock` | property | `AUAudioUnit.h` | Transport state callbacks are not exposed |
-| `AUAudioUnit.profileStateForCable:channel:` | method | `AUAudioUnit.h` | MIDICI profile queries are not exposed |
-| `AUAudioUnit.enableProfile:cable:onChannel:error:` | method | `AUAudioUnit.h` | MIDICI profile enable API is not exposed |
-| `AUAudioUnit.disableProfile:cable:onChannel:error:` | method | `AUAudioUnit.h` | MIDICI profile disable API is not exposed |
-| `AUAudioUnit.messageChannelFor:` | method | `AUAudioUnit.h` | AUMessageChannel bridging is not exposed |
-| `AUAudioUnit.canPerformInput` | property | `AUAudioUnit.h` | Input and output category APIs are not wrapped |
-| `AUAudioUnit.canPerformOutput` | property | `AUAudioUnit.h` | Input and output category APIs are not wrapped |
-| `AUAudioUnit.setDeviceID:error:` | method | `AUAudioUnit.h` | Input and output unit device selection is not wrapped |
-| `AUAudioUnit.startHardwareAndReturnError:` | method | `AUAudioUnit.h` | Input and output unit hardware start is not wrapped |
-| `AUAudioUnit.stopHardware` | method | `AUAudioUnit.h` | Input and output unit hardware stop is not wrapped |
-| `AUAudioUnit.intendedSpatialExperience` | property | `AUAudioUnit.h` | Spatial-audio intent API is not exposed |
-| `AUParameterNode.tokenByAddingParameterObserver:` | method | `AUParameters.h` | Observer token lifecycle is not exposed |
-| `AUParameterNode.tokenByAddingParameterRecordingObserver:` | method | `AUParameters.h` | Recording observer API is not exposed |
-| `AUParameterNode.tokenByAddingParameterAutomationObserver:` | method | `AUParameters.h` | Automation observer API is not exposed |
-| `AUParameterNode.removeParameterObserver:` | method | `AUParameters.h` | Observer removal API is not exposed |
-| `AVAudioUnit.loadAudioUnitPresetAtURL:error:` | method | `AVAudioUnit.h` | Public Rust method exists but the Swift bridge returns an AU_UNAVAILABLE stub |
-| `AVAudioUnitComponentManager.componentsMatchingPredicate:` | method | `AVAudioUnitComponent.h` | Predicate-based enumeration is not wrapped |
-| `AVAudioUnitComponentManager.componentsPassingTest:` | method | `AVAudioUnitComponent.h` | Block-based enumeration is not wrapped |
-| `AVAudioUnitSampler` | class | `AVAudioUnitSampler.h` | No sampler subclass wrapper |
-| `AVAudioUnitEQ` | class | `AVAudioUnitEQ.h` | No EQ subclass wrapper |
-| `AVAudioUnitDelay` | class | `AVAudioUnitDelay.h` | No delay subclass wrapper |
-| `AVAudioUnitDistortion` | class | `AVAudioUnitDistortion.h` | No distortion subclass wrapper |
-| `AVAudioUnitReverb` | class | `AVAudioUnitReverb.h` | No reverb subclass wrapper |
-| `AVAudioUnitTimeEffect` | class | `AVAudioUnitTimeEffect.h` | No time-effect subclass wrapper |
-| `AVAudioUnitTimePitch` | class | `AVAudioUnitTimePitch.h` | No time-pitch subclass wrapper |
-| `AVAudioUnitVarispeed` | class | `AVAudioUnitVarispeed.h` | No varispeed subclass wrapper |
-| `AVAudioUnitComponent.userTagNames` | property | `AVAudioUnitComponent.h` | Public Rust tags() placeholder stays empty; user tags are not bridged |
-| `AVAudioUnitComponent.allTagNames` | property | `AVAudioUnitComponent.h` | Public Rust tags() placeholder stays empty; all tags are not bridged |
-| `AVAudioUnitComponent.availableArchitectures` | property | `AVAudioUnitComponent.h` | Architecture metadata is not exposed |
-| `AVAudioUnitComponent.configurationDictionary` | property | `AVAudioUnitComponent.h` | Configuration dictionary is not exposed |
-| `AVAudioUnitComponent.supportsNumberInputChannels:outputChannels:` | method | `AVAudioUnitComponent.h` | Channel compatibility probe is not exposed |
-
 ## ⏭️ EXEMPT
 | Symbol | Kind | Header | Reason | SDK attribute |
 | --- | --- | --- | --- | --- |
@@ -194,3 +191,4 @@ COVERAGE_PCT: 66.86%
 | `MusicDeviceReleaseInstrument` | function | `MusicDevice.h` | Deprecated on macOS and explicitly skipped | `API_DEPRECATED("no longer supported", macos(10.0, 10.5)) API_UNAVAILABLE(ios, watchos, tvos)` |
 | `AVAudioUnitComponent.componentURL` | property | `AVAudioUnitComponent.h` | Deprecated on macOS and explicitly skipped | `NS_DEPRECATED(10_10, 10_11, NA, NA)` |
 | `AVAudioUnitSampler.masterGain` | property | `AVAudioUnitSampler.h` | Deprecated in favor of overallGain and explicitly skipped | `API_DEPRECATED_WITH_REPLACEMENT("overallGain", ios(8.0, 15.0), macos(10.10, 12.0), tvos(9.0, 15.0))` |
+| `AUAudioUnit.intendedSpatialExperience` | property | `AUAudioUnit.h` | Unavailable on macOS and explicitly skipped | `API_AVAILABLE(visionos(26.0)) API_UNAVAILABLE(ios, watchos, tvos, macos)` |

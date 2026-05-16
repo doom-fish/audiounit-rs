@@ -36,7 +36,9 @@ fn main() {
     let swift_triple = match target_arch.as_str() {
         "x86_64" => "x86_64-apple-macosx",
         "aarch64" => "arm64-apple-macosx",
-        other => panic!("audiounit: unsupported target arch '{other}'. Expected x86_64 or aarch64."),
+        other => {
+            panic!("audiounit: unsupported target arch '{other}'. Expected x86_64 or aarch64.")
+        }
     };
 
     let output = Command::new("swift")

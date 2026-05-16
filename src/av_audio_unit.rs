@@ -1,7 +1,6 @@
 //! `AVAudioUnit` instantiation and metadata.
 
 use core::ffi::c_void;
-use std::ffi::CString;
 use std::path::Path;
 
 use serde::Deserialize;
@@ -10,7 +9,7 @@ use crate::au_audio_unit::AuAudioUnit;
 use crate::component_description::AudioComponentDescription;
 use crate::error::AuError;
 use crate::ffi;
-use crate::util::{status_result, take_json};
+use crate::util::{cstring_from_path, status_result, take_json};
 
 /// Options for `AVAudioUnit` instantiation.
 #[derive(Debug, Clone, Copy, Default)]
@@ -83,8 +82,7 @@ impl AvAudioUnit {
 
     /// Load a `.aupreset` file.
     pub fn load_audio_unit_preset<P: AsRef<Path>>(&self, path: P) -> Result<(), AuError> {
-        let path = CString::new(path.as_ref().to_string_lossy().into_owned())
-            .map_err(|error| AuError::InvalidArgument(error.to_string()))?;
+        let path = cstring_from_path(path)?;
         let mut error_ptr = core::ptr::null_mut();
         let status = unsafe {
             ffi::au_avunit_load_audio_unit_preset(self.ptr, path.as_ptr(), &mut error_ptr)

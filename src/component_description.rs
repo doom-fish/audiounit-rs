@@ -135,4 +135,16 @@ pub mod constants {
     pub const AUDIO_UNIT_SUBTYPE_SPEECH_SYNTHESIS: u32 = 0x7474_7370;
     /// `kAudioUnitSubType_PeakLimiter` — 'lmtr'
     pub const AUDIO_UNIT_SUBTYPE_PEAK_LIMITER: u32 = 0x6c6d_7472;
+    /// `kAudioUnitSubType_Distortion` — 'dist'
+    pub const AUDIO_UNIT_SUBTYPE_DISTORTION: u32 = 0x6469_7374;
+    /// `kAudioUnitSubType_Delay` — 'dely'
+    pub const AUDIO_UNIT_SUBTYPE_DELAY: u32 = 0x6465_6c79;
+    /// `kAudioUnitSubType_NBandEQ` — 'nbeq'
+    pub const AUDIO_UNIT_SUBTYPE_NBAND_EQ: u32 = 0x6e62_6571;
+    /// `kAudioUnitSubType_Reverb2` — 'rvb2'
+    pub const AUDIO_UNIT_SUBTYPE_REVERB2: u32 = 0x7276_6232;
+    /// `kAudioUnitSubType_Varispeed` — 'vari'
+    pub const AUDIO_UNIT_SUBTYPE_VARISPEED: u32 = 0x7661_7269;
+    /// `kAudioUnitSubType_NewTimePitch` — 'nutp'
+    pub const AUDIO_UNIT_SUBTYPE_NEW_TIME_PITCH: u32 = 0x6e75_7470;
 }

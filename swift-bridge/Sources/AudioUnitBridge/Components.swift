@@ -2,6 +2,67 @@ import AudioToolbox
 import AVFAudio
 import Foundation
 
+public typealias AvAudioUnitComponentTestCallback = @convention(c) (
+    UnsafeMutableRawPointer,
+    UnsafeMutablePointer<Bool>?,
+    UnsafeMutableRawPointer?
+) -> Bool
+
+private func retainComponentBuffer(_ components: [AVAudioUnitComponent]) -> UnsafeMutablePointer<UnsafeMutableRawPointer?>? {
+    guard !components.isEmpty else { return nil }
+    let buffer = UnsafeMutablePointer<UnsafeMutableRawPointer?>.allocate(capacity: components.count)
+    for (index, component) in components.enumerated() {
+        buffer.advanced(by: index).pointee = retainBox(component)
+    }
+    return buffer
+}
+
+private func stringContains(_ haystack: String, needle: String) -> Bool {
+    haystack.localizedCaseInsensitiveContains(needle)
+}
+
+private func evaluateComponentPredicate(_ component: AVAudioUnitComponent, json: Any) -> Bool {
+    guard let dictionary = json as? [String: Any],
+          let kind = dictionary["kind"] as? String else {
+        return false
+    }
+
+    switch kind {
+    case "true":
+        return true
+    case "nameContains":
+        guard let value = dictionary["value"] as? String else { return false }
+        return stringContains(component.name, needle: value)
+    case "typeNameContains":
+        guard let value = dictionary["value"] as? String else { return false }
+        return stringContains(component.typeName, needle: value)
+    case "manufacturerNameContains":
+        guard let value = dictionary["value"] as? String else { return false }
+        return stringContains(component.manufacturerName, needle: value)
+    case "userTagContains":
+        guard let value = dictionary["value"] as? String else { return false }
+        return component.userTagNames.contains { stringContains($0, needle: value) }
+    case "allTagContains":
+        guard let value = dictionary["value"] as? String else { return false }
+        return component.allTagNames.contains { stringContains($0, needle: value) }
+    case "hasCustomView":
+        return component.hasCustomView == (dictionary["value"] as? Bool ?? false)
+    case "sandboxSafe":
+        return component.isSandboxSafe == (dictionary["value"] as? Bool ?? false)
+    case "all":
+        let predicates = dictionary["predicates"] as? [Any] ?? []
+        return predicates.allSatisfy { evaluateComponentPredicate(component, json: $0) }
+    case "any":
+        let predicates = dictionary["predicates"] as? [Any] ?? []
+        return predicates.contains { evaluateComponentPredicate(component, json: $0) }
+    case "not":
+        guard let predicate = dictionary["predicate"] else { return false }
+        return !evaluateComponentPredicate(component, json: predicate)
+    default:
+        return false
+    }
+}
+
 @_cdecl("au_component_count")
 public func au_component_count(
     _ type: UInt32,
@@ -87,12 +148,67 @@ public func au_avc_manager_components_matching(
     let desc = makeDesc(type, subtype, manufacturer, flags, flagsMask)
     let components = AVAudioUnitComponentManager.shared().components(matching: desc)
     outCount.pointee = components.count
-    guard !components.isEmpty else { return nil }
-    let buffer = UnsafeMutablePointer<UnsafeMutableRawPointer?>.allocate(capacity: components.count)
-    for (index, component) in components.enumerated() {
-        buffer.advanced(by: index).pointee = retainBox(component)
+    return retainComponentBuffer(components)
+}
+
+@_cdecl("au_avc_manager_components_matching_predicate")
+public func au_avc_manager_components_matching_predicate(
+    _ predicateJSON: UnsafePointer<CChar>?,
+    _ outComponents: UnsafeMutablePointer<UnsafeMutablePointer<UnsafeMutableRawPointer?>?>,
+    _ outCount: UnsafeMutablePointer<Int>,
+    _ outErrorMsg: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>
+) -> Int32 {
+    outComponents.pointee = nil
+    outCount.pointee = 0
+    outErrorMsg.pointee = nil
+
+    guard let predicateObject = jsonObject(from: predicateJSON) else {
+        setError(outErrorMsg, "component predicate JSON was invalid")
+        return AU_INVALID_ARGUMENT
     }
-    return buffer
+
+    let predicate = NSPredicate { object, _ in
+        guard let component = object as? AVAudioUnitComponent else { return false }
+        return evaluateComponentPredicate(component, json: predicateObject)
+    }
+    let components = AVAudioUnitComponentManager.shared().components(matching: predicate)
+    outCount.pointee = components.count
+    outComponents.pointee = retainComponentBuffer(components)
+    return AU_OK
+}
+
+@_cdecl("au_avc_manager_components_passing_test")
+public func au_avc_manager_components_passing_test(
+    _ callback: AvAudioUnitComponentTestCallback?,
+    _ context: UnsafeMutableRawPointer?,
+    _ outComponents: UnsafeMutablePointer<UnsafeMutablePointer<UnsafeMutableRawPointer?>?>,
+    _ outCount: UnsafeMutablePointer<Int>,
+    _ outErrorMsg: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>
+) -> Int32 {
+    outComponents.pointee = nil
+    outCount.pointee = 0
+    outErrorMsg.pointee = nil
+
+    guard let callback else {
+        setError(outErrorMsg, "component test callback was null")
+        return AU_INVALID_ARGUMENT
+    }
+
+    let components = AVAudioUnitComponentManager.shared().components(passingTest: { component, stop in
+        let retained = retainBox(component)
+        defer { releaseBox(retained, as: AVAudioUnitComponent.self) }
+
+        var rustStop = false
+        let include = callback(retained, &rustStop, context)
+        if rustStop {
+            stop.pointee = ObjCBool(true)
+        }
+        return include
+    })
+
+    outCount.pointee = components.count
+    outComponents.pointee = retainComponentBuffer(components)
+    return AU_OK
 }
 
 @_cdecl("au_avc_component_array_free")
@@ -155,6 +271,52 @@ public func au_avc_component_audio_component_description(
     outManufacturer.pointee = desc.componentManufacturer
     outFlags.pointee = desc.componentFlags
     outFlagsMask.pointee = desc.componentFlagsMask
+}
+
+@_cdecl("au_avc_component_user_tag_names_json")
+public func au_avc_component_user_tag_names_json(_ ptr: UnsafeMutableRawPointer) -> UnsafeMutablePointer<CChar>? {
+    jsonCString(borrowBox(ptr, as: AVAudioUnitComponent.self).userTagNames)
+}
+
+@_cdecl("au_avc_component_set_user_tag_names_json")
+public func au_avc_component_set_user_tag_names_json(
+    _ ptr: UnsafeMutableRawPointer,
+    _ tagsJSON: UnsafePointer<CChar>?,
+    _ outErrorMsg: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>
+) -> Int32 {
+    outErrorMsg.pointee = nil
+    guard let tags = jsonObject(from: tagsJSON) as? [String] else {
+        setError(outErrorMsg, "component tag JSON was invalid")
+        return AU_INVALID_ARGUMENT
+    }
+    borrowBox(ptr, as: AVAudioUnitComponent.self).userTagNames = tags
+    return AU_OK
+}
+
+@_cdecl("au_avc_component_all_tag_names_json")
+public func au_avc_component_all_tag_names_json(_ ptr: UnsafeMutableRawPointer) -> UnsafeMutablePointer<CChar>? {
+    jsonCString(borrowBox(ptr, as: AVAudioUnitComponent.self).allTagNames)
+}
+
+@_cdecl("au_avc_component_available_architectures_json")
+public func au_avc_component_available_architectures_json(_ ptr: UnsafeMutableRawPointer) -> UnsafeMutablePointer<CChar>? {
+    let architectures = borrowBox(ptr, as: AVAudioUnitComponent.self).availableArchitectures.map { Int64($0.intValue) }
+    return jsonCString(architectures)
+}
+
+@_cdecl("au_avc_component_configuration_dictionary_json")
+public func au_avc_component_configuration_dictionary_json(_ ptr: UnsafeMutableRawPointer) -> UnsafeMutablePointer<CChar>? {
+    let dictionary = borrowBox(ptr, as: AVAudioUnitComponent.self).configurationDictionary
+    return jsonCString(jsonCompatible(dictionary))
+}
+
+@_cdecl("au_avc_component_supports_number_input_channels")
+public func au_avc_component_supports_number_input_channels(
+    _ ptr: UnsafeMutableRawPointer,
+    _ inputChannels: Int,
+    _ outputChannels: Int
+) -> Bool {
+    borrowBox(ptr, as: AVAudioUnitComponent.self).supportsNumberInputChannels(inputChannels, outputChannels: outputChannels)
 }
 
 @_cdecl("au_avc_component_release")

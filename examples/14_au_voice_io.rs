@@ -5,7 +5,10 @@ use audiounit::prelude::*;
 fn main() -> Result<(), AuError> {
     let voice = AuVoiceIo::new(InstantiationOptions::InProcess)?;
     let info = voice.info()?;
-    println!("voice-io {} mute={}", info.av_audio_unit.name, info.mute_output);
+    println!(
+        "voice-io {} mute={}",
+        info.av_audio_unit.name, info.mute_output
+    );
     voice.set_bypass_voice_processing(voice.bypass_voice_processing())?;
     voice.set_enable_agc(voice.enable_agc())?;
     voice.set_mute_output(voice.mute_output())?;

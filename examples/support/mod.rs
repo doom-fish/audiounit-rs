@@ -1,19 +1,15 @@
 #![allow(dead_code)]
 
+use std::path::Path;
+
 use audiounit::prelude::*;
 
 pub const fn default_output_description() -> AudioComponentDescription {
-    AudioComponentDescription::apple(
-        AUDIO_UNIT_TYPE_OUTPUT,
-        AUDIO_UNIT_SUBTYPE_DEFAULT_OUTPUT,
-    )
+    AudioComponentDescription::apple(AUDIO_UNIT_TYPE_OUTPUT, AUDIO_UNIT_SUBTYPE_DEFAULT_OUTPUT)
 }
 
 pub const fn peak_limiter_description() -> AudioComponentDescription {
-    AudioComponentDescription::apple(
-        AUDIO_UNIT_TYPE_EFFECT,
-        AUDIO_UNIT_SUBTYPE_PEAK_LIMITER,
-    )
+    AudioComponentDescription::apple(AUDIO_UNIT_TYPE_EFFECT, AUDIO_UNIT_SUBTYPE_PEAK_LIMITER)
 }
 
 pub const fn speech_synthesis_description() -> AudioComponentDescription {
@@ -24,16 +20,26 @@ pub const fn speech_synthesis_description() -> AudioComponentDescription {
 }
 
 pub const fn dls_synth_description() -> AudioComponentDescription {
-    AudioComponentDescription::apple(
-        AUDIO_UNIT_TYPE_MUSIC_DEVICE,
-        AUDIO_UNIT_SUBTYPE_DLS_SYNTH,
-    )
+    AudioComponentDescription::apple(AUDIO_UNIT_TYPE_MUSIC_DEVICE, AUDIO_UNIT_SUBTYPE_DLS_SYNTH)
+}
+
+pub const SYSTEM_SOUND_BANK_PATH: &str =
+    "/System/Library/Components/CoreAudio.component/Contents/Resources/gs_instruments.dls";
+
+pub fn system_sound_bank_path() -> &'static Path {
+    Path::new(SYSTEM_SOUND_BANK_PATH)
 }
 
 pub fn fourcc_to_string(code: u32) -> String {
     code.to_be_bytes()
         .iter()
-        .map(|&byte| if byte.is_ascii_graphic() || byte == b' ' { byte as char } else { '.' })
+        .map(|&byte| {
+            if byte.is_ascii_graphic() || byte == b' ' {
+                byte as char
+            } else {
+                '.'
+            }
+        })
         .collect()
 }
 

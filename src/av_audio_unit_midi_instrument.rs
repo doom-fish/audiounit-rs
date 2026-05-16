@@ -36,6 +36,10 @@ impl Drop for AvAudioUnitMidiInstrument {
 }
 
 impl AvAudioUnitMidiInstrument {
+    pub(crate) fn from_raw(ptr: *mut c_void) -> Self {
+        Self { ptr }
+    }
+
     /// Create a MIDI instrument for the given component description.
     pub fn new(description: AudioComponentDescription) -> Result<Self, AuError> {
         let mut unit_ptr = core::ptr::null_mut();
@@ -95,9 +99,7 @@ impl AvAudioUnitMidiInstrument {
     /// Send polyphonic key pressure.
     pub fn send_pressure_for_key(&self, key: u8, value: u8, channel: u8) {
         unsafe {
-            ffi::au_av_midi_instrument_send_pressure_for_key(
-                self.ptr, key, value, channel,
-            );
+            ffi::au_av_midi_instrument_send_pressure_for_key(self.ptr, key, value, channel);
         };
     }
 

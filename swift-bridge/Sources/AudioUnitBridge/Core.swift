@@ -124,6 +124,45 @@ func jsonValue(_ value: Any?) -> Any {
     value ?? NSNull()
 }
 
+func jsonCompatible(_ value: Any?) -> Any {
+    guard let value else { return NSNull() }
+
+    switch value {
+    case let bool as Bool:
+        return bool
+    case let string as String:
+        return string
+    case let number as NSNumber:
+        return number
+    case let array as [Any]:
+        return array.map(jsonCompatible)
+    case let dictionary as [String: Any]:
+        return dictionary.mapValues(jsonCompatible)
+    case let dictionary as NSDictionary:
+        var converted: [String: Any] = [:]
+        for (key, value) in dictionary {
+            converted[String(describing: key)] = jsonCompatible(value)
+        }
+        return converted
+    case let data as Data:
+        return ["type": "data", "base64": data.base64EncodedString()]
+    case let url as URL:
+        return url.path
+    case let date as Date:
+        return ISO8601DateFormatter().string(from: date)
+    default:
+        return String(describing: value)
+    }
+}
+
+func jsonObject(from json: UnsafePointer<CChar>?) -> Any? {
+    guard let json,
+          let data = String(cString: json).data(using: .utf8) else {
+        return nil
+    }
+    return try? JSONSerialization.jsonObject(with: data, options: [])
+}
+
 func instantiateAVAudioUnitSync(
     description: AudioComponentDescription,
     options: AudioComponentInstantiationOptions,

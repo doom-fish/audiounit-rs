@@ -12,6 +12,11 @@ fn main() -> Result<(), AuError> {
         .ok_or_else(|| AuError::Unavailable("default output had no parameter tree".to_owned()))?;
     let group = tree.root_group();
     let info = group.info()?;
-    println!("group {} has {} children / {} parameters", info.display_name, group.children()?.len(), group.all_parameters()?.len());
+    println!(
+        "group {} has {} children / {} parameters",
+        info.display_name,
+        group.children()?.len(),
+        group.all_parameters()?.len()
+    );
     Ok(())
 }

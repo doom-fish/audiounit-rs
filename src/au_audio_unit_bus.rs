@@ -94,7 +94,9 @@ impl AuAudioUnitBus {
         unsafe {
             ffi::au_bus_set_name(
                 self.ptr,
-                value.as_ref().map_or(core::ptr::null(), |value| value.as_ptr()),
+                value
+                    .as_ref()
+                    .map_or(core::ptr::null(), |value| value.as_ptr()),
             );
         };
         Ok(())

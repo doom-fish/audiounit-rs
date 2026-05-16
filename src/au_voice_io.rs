@@ -64,7 +64,8 @@ impl AuVoiceIo {
     pub fn new(options: InstantiationOptions) -> Result<Self, AuError> {
         let mut unit_ptr = core::ptr::null_mut();
         let mut error_ptr = core::ptr::null_mut();
-        let status = unsafe { ffi::au_voice_io_create(options as u32, &mut unit_ptr, &mut error_ptr) };
+        let status =
+            unsafe { ffi::au_voice_io_create(options as u32, &mut unit_ptr, &mut error_ptr) };
         status_result(status, error_ptr)?;
         Ok(Self { ptr: unit_ptr })
     }

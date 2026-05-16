@@ -47,9 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .count();
     let instruments_count = all
         .iter()
-        .filter(|c| {
-            c.audio_component_description().component_type == AUDIO_UNIT_TYPE_MUSIC_DEVICE
-        })
+        .filter(|c| c.audio_component_description().component_type == AUDIO_UNIT_TYPE_MUSIC_DEVICE)
         .count();
     let outputs_count = all
         .iter()

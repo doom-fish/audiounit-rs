@@ -15,5 +15,10 @@ unsafe extern "C" {
     pub fn au_parameter_string_from_value(ptr: *mut c_void, value: f32) -> *mut c_char;
     pub fn au_parameter_value_from_string(ptr: *mut c_void, value: *const c_char) -> f32;
     pub fn au_parameter_set_value_at_host_time(ptr: *mut c_void, value: f32, host_time: u64);
-    pub fn au_parameter_set_value_with_event(ptr: *mut c_void, value: f32, host_time: u64, event_type: u32);
+    pub fn au_parameter_set_value_with_event(
+        ptr: *mut c_void,
+        value: f32,
+        host_time: u64,
+        event_type: u32,
+    );
 }

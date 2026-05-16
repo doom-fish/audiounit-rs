@@ -74,7 +74,13 @@ public func au_avunit_load_audio_unit_preset(
         setError(outErrorMsg, "preset path was null")
         return AU_INVALID_ARGUMENT
     }
-    let _ = URL(fileURLWithPath: String(cString: path))
-    setError(outErrorMsg, "AVAudioUnit preset loading is not currently bridged")
-    return AU_UNAVAILABLE
+
+    let url = URL(fileURLWithPath: String(cString: path))
+    do {
+        try borrowBox(ptr, as: AVAudioUnit.self).loadPreset(at: url)
+        return AU_OK
+    } catch {
+        setError(outErrorMsg, error.localizedDescription)
+        return AU_UNAVAILABLE
+    }
 }

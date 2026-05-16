@@ -129,27 +129,21 @@ impl AuParameter {
         event_type: AuParameterAutomationEventType,
     ) {
         unsafe {
-            ffi::au_parameter_set_value_with_event(
-                self.ptr,
-                value,
-                host_time,
-                event_type as u32,
-            );
+            ffi::au_parameter_set_value_with_event(self.ptr, value, host_time, event_type as u32);
         };
     }
 
     /// Localized string representation of `value`.
     pub fn string_from_value(&self, value: f32) -> String {
         unsafe {
-            take_string(ffi::au_parameter_string_from_value(self.ptr, value))
-                .unwrap_or_default()
+            take_string(ffi::au_parameter_string_from_value(self.ptr, value)).unwrap_or_default()
         }
     }
 
     /// Convert a localized value string back to a numeric value.
     pub fn value_from_string(&self, value: &str) -> Result<f32, AuError> {
-        let value = CString::new(value)
-            .map_err(|error| AuError::InvalidArgument(error.to_string()))?;
+        let value =
+            CString::new(value).map_err(|error| AuError::InvalidArgument(error.to_string()))?;
         Ok(unsafe { ffi::au_parameter_value_from_string(self.ptr, value.as_ptr()) })
     }
 }

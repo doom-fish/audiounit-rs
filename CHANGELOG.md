@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.2.1] - 2026-05-16
+
+### Added
+
+- Added advanced `AuAudioUnit` coverage for render invocation, parameter scheduling, render-observer capture, MIDI scheduling/output capture, host musical and transport callbacks, MIDI-CI profile helpers, message channels, and input/output hardware control.
+- Added raw legacy `AudioComponent` / `AudioUnit` / `MusicDevice` lifecycle wrappers, including instance creation/disposal, start/stop, initialize/uninitialize, render, property listeners, parameter scheduling, and MIDI / `SysEx` helpers.
+- Added capture-backed parameter observer, recording observer, and automation observer helpers on `AuParameterTree`.
+- Added `ComponentManager` predicate/test enumeration plus richer `AudioUnitComponent` metadata APIs.
+- Added `AvAudioUnitSampler`, `AvAudioUnitEQ`, `AvAudioUnitDelay`, `AvAudioUnitDistortion`, `AvAudioUnitReverb`, `AvAudioUnitTimeEffect`, `AvAudioUnitTimePitch`, and `AvAudioUnitVarispeed`.
+- Added `examples/15_av_audio_unit_components.rs`, `examples/16_au_audio_unit_advanced.rs`, `tests/av_audio_unit_components_tests.rs`, `tests/av_audio_unit_specialized_tests.rs`, `tests/legacy_audio_unit_tests.rs`, and `tests/au_audio_unit_advanced_tests.rs`.
+
+### Changed
+
+- Upgraded the crate to v0.2.1.
+- Implemented real `AvAudioUnit::load_audio_unit_preset` bridging.
+- Updated `COVERAGE_AUDIT.md` to 168 verified symbols, 5 exempt symbols, and 100% non-exempt coverage.
+
 ## [0.2.0] - 2026-05-16
 
 ### Added

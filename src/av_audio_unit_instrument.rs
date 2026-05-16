@@ -4,7 +4,9 @@
 //! current macOS SDK. The public base class for instrument-style units is
 //! `AVAudioUnitMIDIInstrument`, which this module re-exports.
 
-use crate::av_audio_unit_midi_instrument::{AvAudioUnitMidiInstrument, AvAudioUnitMidiInstrumentInfo};
+use crate::av_audio_unit_midi_instrument::{
+    AvAudioUnitMidiInstrument, AvAudioUnitMidiInstrumentInfo,
+};
 use crate::ffi;
 
 /// Compatibility alias for the public `AVAudioUnitMIDIInstrument` type.

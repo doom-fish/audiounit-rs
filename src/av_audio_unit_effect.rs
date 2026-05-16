@@ -32,6 +32,10 @@ impl Drop for AvAudioUnitEffect {
 }
 
 impl AvAudioUnitEffect {
+    pub(crate) fn from_raw(ptr: *mut c_void) -> Self {
+        Self { ptr }
+    }
+
     /// Create an effect unit for the given component description.
     pub fn new(description: AudioComponentDescription) -> Result<Self, AuError> {
         let mut unit_ptr = core::ptr::null_mut();
