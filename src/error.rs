@@ -41,9 +41,13 @@ pub(crate) fn from_status(status: i32, msg: *mut core::ffi::c_char) -> AuError {
     let message = if msg.is_null() {
         String::new()
     } else {
+        // SAFETY: msg is checked for null above; Swift bridge guarantees it points to a valid,
+        // null-terminated C string if not null.
         let s = unsafe { core::ffi::CStr::from_ptr(msg) }
             .to_string_lossy()
             .into_owned();
+        // SAFETY: msg is guaranteed to be a valid allocation from Swift bridge; freeing it here
+        // is necessary to prevent memory leaks since the bridge allocates the string.
         unsafe { crate::ffi::au_string_free(msg) };
         s
     };

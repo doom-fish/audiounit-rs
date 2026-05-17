@@ -12,9 +12,13 @@ pub fn take_string(ptr: *mut c_char) -> Option<String> {
     if ptr.is_null() {
         return None;
     }
+    // SAFETY: ptr is checked for null above; Swift bridge guarantees it points to a valid,
+    // null-terminated C string if not null.
     let string = unsafe { CStr::from_ptr(ptr) }
         .to_string_lossy()
         .into_owned();
+    // SAFETY: ptr is guaranteed to be a valid allocation from Swift bridge; freeing it here
+    // is necessary to prevent memory leaks since the bridge allocates the string.
     unsafe { ffi::au_string_free(ptr) };
     Some(string)
 }

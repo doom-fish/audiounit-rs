@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.2] - 2026-05-17
+
+### Fixed
+
+- Added `SAFETY` comments to all unsafe blocks in FFI boundary code (`util.rs` and `error.rs`) to document the correctness of pointer dereferencing and memory deallocation patterns.
+
 ## [0.2.1] - 2026-05-16
 
 ### Added
