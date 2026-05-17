@@ -482,7 +482,9 @@ impl AuAudioUnit {
 
     /// Enable or disable built-in capture for `MIDIOutputEventListBlock` callbacks.
     pub fn set_midi_output_event_list_capture_enabled(&self, enabled: bool) {
-        unsafe { ffi::au_auaudiounit_set_midi_output_event_list_capture_enabled(self.ptr, enabled) };
+        unsafe {
+            ffi::au_auaudiounit_set_midi_output_event_list_capture_enabled(self.ptr, enabled)
+        };
     }
 
     /// Drain captured `MIDIOutputEventListBlock` callbacks.
