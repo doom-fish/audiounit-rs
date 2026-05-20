@@ -1,7 +1,6 @@
 //! `AVAudioUnitComponentManager` and `AVAudioUnitComponent` wrappers.
 
 use core::ffi::c_void;
-use std::ffi::CStr;
 use std::mem::ManuallyDrop;
 use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
 
@@ -429,14 +428,7 @@ fn components_from_buffer(
 }
 
 unsafe fn take_string(ptr: *mut core::ffi::c_char) -> Option<String> {
-    if ptr.is_null() {
-        return None;
-    }
-    let s = unsafe { CStr::from_ptr(ptr) }
-        .to_string_lossy()
-        .into_owned();
-    unsafe { ffi::au_string_free(ptr) };
-    Some(s)
+    doom_fish_utils::ffi_string::take_owned_cstring_c(ptr, |p| ffi::au_string_free(p))
 }
 
 #[cfg(test)]

@@ -1,6 +1,6 @@
 [package]
 name = "audiounit"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/doom-fish/audiounit-rs"
@@ -37,14 +37,14 @@ crate-type = ["lib"]
 
 [features]
 default = []
-async = ["dep:doom-fish-utils"]
+async = []
 
 [dependencies]
 apple-cf = { version = ">=0.2, <0.10" }
 libc = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-doom-fish-utils = { path = "../doom-fish-utils", version = ">=0.3, <0.4", optional = true }
+doom-fish-utils = { path = "../doom-fish-utils", version = ">=0.3, <0.4" }
 
 [package.metadata.docs.rs]
 all-features = true

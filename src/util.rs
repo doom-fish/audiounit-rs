@@ -1,5 +1,5 @@
 use core::ffi::c_char;
-use std::ffi::{CStr, CString};
+use std::ffi::CString;
 use std::path::Path;
 
 use serde::de::DeserializeOwned;
@@ -9,18 +9,7 @@ use crate::error::AuError;
 use crate::ffi;
 
 pub fn take_string(ptr: *mut c_char) -> Option<String> {
-    if ptr.is_null() {
-        return None;
-    }
-    // SAFETY: ptr is checked for null above; Swift bridge guarantees it points to a valid,
-    // null-terminated C string if not null.
-    let string = unsafe { CStr::from_ptr(ptr) }
-        .to_string_lossy()
-        .into_owned();
-    // SAFETY: ptr is guaranteed to be a valid allocation from Swift bridge; freeing it here
-    // is necessary to prevent memory leaks since the bridge allocates the string.
-    unsafe { ffi::au_string_free(ptr) };
-    Some(string)
+    unsafe { doom_fish_utils::ffi_string::take_owned_cstring_c(ptr, |p| ffi::au_string_free(p)) }
 }
 
 pub fn take_json<T: DeserializeOwned>(ptr: *mut c_char) -> Result<T, AuError> {
