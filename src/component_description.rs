@@ -148,3 +148,69 @@ pub mod constants {
     /// `kAudioUnitSubType_NewTimePitch` — 'nutp'
     pub const AUDIO_UNIT_SUBTYPE_NEW_TIME_PITCH: u32 = 0x6e75_7470;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn new_zeroes_flags() {
+        let description = AudioComponentDescription::new(1, 2, 3);
+
+        assert_eq!(description.component_type, 1);
+        assert_eq!(description.component_subtype, 2);
+        assert_eq!(description.component_manufacturer, 3);
+        assert_eq!(description.component_flags, 0);
+        assert_eq!(description.component_flags_mask, 0);
+    }
+
+    #[test]
+    fn with_flags_preserves_all_fields() {
+        let description = AudioComponentDescription::with_flags(1, 2, 3, 4, 5);
+
+        assert_eq!(description.component_type, 1);
+        assert_eq!(description.component_subtype, 2);
+        assert_eq!(description.component_manufacturer, 3);
+        assert_eq!(description.component_flags, 4);
+        assert_eq!(description.component_flags_mask, 5);
+    }
+
+    #[test]
+    fn apple_uses_apple_manufacturer() {
+        let description = AudioComponentDescription::apple(
+            constants::AUDIO_UNIT_TYPE_EFFECT,
+            constants::AUDIO_UNIT_SUBTYPE_REVERB2,
+        );
+
+        assert_eq!(description.component_type, constants::AUDIO_UNIT_TYPE_EFFECT);
+        assert_eq!(description.component_subtype, constants::AUDIO_UNIT_SUBTYPE_REVERB2);
+        assert_eq!(
+            description.component_manufacturer,
+            constants::AUDIO_UNIT_MANUFACTURER_APPLE,
+        );
+    }
+
+    #[test]
+    fn any_matches_default() {
+        assert_eq!(AudioComponentDescription::any(), AudioComponentDescription::default());
+    }
+
+    #[test]
+    fn serde_uses_camel_case_field_names() {
+        let description = AudioComponentDescription::with_flags(1, 2, 3, 4, 5);
+        let value = serde_json::to_value(description).unwrap();
+
+        assert_eq!(
+            value,
+            json!({
+                "componentType": 1,
+                "componentSubType": 2,
+                "componentManufacturer": 3,
+                "componentFlags": 4,
+                "componentFlagsMask": 5,
+            }),
+        );
+        assert_eq!(serde_json::from_value::<AudioComponentDescription>(value).unwrap(), description);
+    }
+}

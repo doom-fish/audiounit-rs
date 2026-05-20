@@ -60,3 +60,53 @@ pub(crate) fn from_status(status: i32, msg: *mut core::ffi::c_char) -> AuError {
         code => AuError::Unknown { code, message },
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ffi::status;
+    use core::ptr;
+
+    #[test]
+    fn display_formats_invalid_argument_errors() {
+        assert_eq!(
+            AuError::InvalidArgument("bad input".into()).to_string(),
+            "invalid argument: bad input",
+        );
+    }
+
+    #[test]
+    fn display_formats_unknown_errors_with_codes() {
+        assert_eq!(
+            AuError::Unknown {
+                code: -1,
+                message: "boom".into(),
+            }
+            .to_string(),
+            "audiounit error -1: boom",
+        );
+    }
+
+    #[test]
+    fn from_status_maps_known_status_codes() {
+        assert_eq!(
+            from_status(status::INVALID_ARGUMENT, ptr::null_mut()),
+            AuError::InvalidArgument(String::new()),
+        );
+        assert_eq!(
+            from_status(status::PROPERTY_ERROR, ptr::null_mut()),
+            AuError::PropertyError(String::new()),
+        );
+    }
+
+    #[test]
+    fn from_status_maps_unknown_status_codes() {
+        assert_eq!(
+            from_status(77, ptr::null_mut()),
+            AuError::Unknown {
+                code: 77,
+                message: String::new(),
+            },
+        );
+    }
+}

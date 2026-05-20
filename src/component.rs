@@ -438,3 +438,102 @@ unsafe fn take_string(ptr: *mut core::ffi::c_char) -> Option<String> {
     unsafe { ffi::au_string_free(ptr) };
     Some(s)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn all_components_serializes_to_true_variant() {
+        let predicate = ComponentPredicate::all_components();
+
+        assert_eq!(serde_json::to_value(predicate).unwrap(), json!({ "kind": "true" }));
+    }
+
+    #[test]
+    fn string_match_builders_serialize_expected_values() {
+        assert_eq!(
+            serde_json::to_value(ComponentPredicate::name_contains("Reverb")).unwrap(),
+            json!({ "kind": "nameContains", "value": "Reverb" }),
+        );
+        assert_eq!(
+            serde_json::to_value(ComponentPredicate::type_name_contains("Effect")).unwrap(),
+            json!({ "kind": "typeNameContains", "value": "Effect" }),
+        );
+        assert_eq!(
+            serde_json::to_value(ComponentPredicate::manufacturer_name_contains("Apple")).unwrap(),
+            json!({ "kind": "manufacturerNameContains", "value": "Apple" }),
+        );
+    }
+
+    #[test]
+    fn tag_builders_serialize_expected_values() {
+        assert_eq!(
+            serde_json::to_value(ComponentPredicate::user_tag_contains("favorite")).unwrap(),
+            json!({ "kind": "userTagContains", "value": "favorite" }),
+        );
+        assert_eq!(
+            serde_json::to_value(ComponentPredicate::all_tag_contains("builtin")).unwrap(),
+            json!({ "kind": "allTagContains", "value": "builtin" }),
+        );
+    }
+
+    #[test]
+    fn boolean_builders_serialize_expected_values() {
+        assert_eq!(
+            serde_json::to_value(ComponentPredicate::has_custom_view(true)).unwrap(),
+            json!({ "kind": "hasCustomView", "value": true }),
+        );
+        assert_eq!(
+            serde_json::to_value(ComponentPredicate::sandbox_safe(false)).unwrap(),
+            json!({ "kind": "sandboxSafe", "value": false }),
+        );
+    }
+
+    #[test]
+    fn logical_combinators_serialize_nested_predicates() {
+        let all = ComponentPredicate::all(vec![
+            ComponentPredicate::name_contains("Delay"),
+            ComponentPredicate::has_custom_view(true),
+        ]);
+        let any = ComponentPredicate::any(vec![
+            ComponentPredicate::type_name_contains("Effect"),
+            ComponentPredicate::manufacturer_name_contains("Apple"),
+        ]);
+
+        assert_eq!(
+            serde_json::to_value(all).unwrap(),
+            json!({
+                "kind": "all",
+                "predicates": [
+                    { "kind": "nameContains", "value": "Delay" },
+                    { "kind": "hasCustomView", "value": true }
+                ]
+            }),
+        );
+        assert_eq!(
+            serde_json::to_value(any).unwrap(),
+            json!({
+                "kind": "any",
+                "predicates": [
+                    { "kind": "typeNameContains", "value": "Effect" },
+                    { "kind": "manufacturerNameContains", "value": "Apple" }
+                ]
+            }),
+        );
+    }
+
+    #[test]
+    fn negate_builder_serializes_nested_predicate() {
+        let predicate = ComponentPredicate::negate(ComponentPredicate::name_contains("Bypass"));
+
+        assert_eq!(
+            serde_json::to_value(predicate).unwrap(),
+            json!({
+                "kind": "not",
+                "predicate": { "kind": "nameContains", "value": "Bypass" }
+            }),
+        );
+    }
+}

@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.2.5] - 2026-05-20
+
+- Added in-`src/` unit tests across `component_description`, `component`, and `error` (Tier 2 quality polish), providing fast `cargo test --lib` fail-fast signal alongside the existing integration tests under `tests/`.
+
 ## [0.2.4] - 2026-05-18
 
 - Widen apple-cf version bound to `<0.10` so 0.9.x resolves.
