@@ -85,6 +85,11 @@ public func au_parameter_tree_release(_ ptr: UnsafeMutableRawPointer) {
     releaseBox(ptr, as: AUParameterTree.self)
 }
 
+@_cdecl("au_parameter_tree_retain")
+public func au_parameter_tree_retain(_ ptr: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer {
+    retainBox(borrowBox(ptr, as: AUParameterTree.self))
+}
+
 @_cdecl("au_parameter_tree_snapshot_json")
 public func au_parameter_tree_snapshot_json(_ ptr: UnsafeMutableRawPointer) -> UnsafeMutablePointer<CChar>? {
     jsonCString(encodeParameterNode(borrowBox(ptr, as: AUParameterTree.self)))

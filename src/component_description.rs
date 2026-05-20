@@ -183,8 +183,14 @@ mod tests {
             constants::AUDIO_UNIT_SUBTYPE_REVERB2,
         );
 
-        assert_eq!(description.component_type, constants::AUDIO_UNIT_TYPE_EFFECT);
-        assert_eq!(description.component_subtype, constants::AUDIO_UNIT_SUBTYPE_REVERB2);
+        assert_eq!(
+            description.component_type,
+            constants::AUDIO_UNIT_TYPE_EFFECT
+        );
+        assert_eq!(
+            description.component_subtype,
+            constants::AUDIO_UNIT_SUBTYPE_REVERB2
+        );
         assert_eq!(
             description.component_manufacturer,
             constants::AUDIO_UNIT_MANUFACTURER_APPLE,
@@ -193,7 +199,10 @@ mod tests {
 
     #[test]
     fn any_matches_default() {
-        assert_eq!(AudioComponentDescription::any(), AudioComponentDescription::default());
+        assert_eq!(
+            AudioComponentDescription::any(),
+            AudioComponentDescription::default()
+        );
     }
 
     #[test]
@@ -211,6 +220,9 @@ mod tests {
                 "componentFlagsMask": 5,
             }),
         );
-        assert_eq!(serde_json::from_value::<AudioComponentDescription>(value).unwrap(), description);
+        assert_eq!(
+            serde_json::from_value::<AudioComponentDescription>(value).unwrap(),
+            description
+        );
     }
 }

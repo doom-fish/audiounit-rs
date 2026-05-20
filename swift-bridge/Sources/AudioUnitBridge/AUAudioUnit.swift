@@ -230,6 +230,11 @@ public func au_auaudiounit_release(_ ptr: UnsafeMutableRawPointer) {
     releaseBox(ptr, as: AUAudioUnit.self)
 }
 
+@_cdecl("au_auaudiounit_retain")
+public func au_auaudiounit_retain(_ ptr: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer {
+    retainBox(borrowBox(ptr, as: AUAudioUnit.self))
+}
+
 @_cdecl("au_auaudiounit_snapshot_json")
 public func au_auaudiounit_snapshot_json(_ ptr: UnsafeMutableRawPointer) -> UnsafeMutablePointer<CChar>? {
     jsonCString(encodeAuAudioUnit(borrowBox(ptr, as: AUAudioUnit.self)))

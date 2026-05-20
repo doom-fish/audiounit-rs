@@ -8,6 +8,9 @@
     clippy::must_use_candidate
 )]
 
+#[cfg(feature = "async")]
+#[cfg_attr(docsrs, doc(cfg(feature = "async")))]
+pub mod async_api;
 pub mod au_audio_unit;
 pub mod au_audio_unit_bus;
 pub mod au_audio_unit_bus_array;

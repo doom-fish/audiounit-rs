@@ -2,6 +2,7 @@ use core::ffi::{c_char, c_void};
 
 unsafe extern "C" {
     pub fn au_parameter_tree_release(ptr: *mut c_void);
+    pub fn au_parameter_tree_retain(ptr: *mut c_void) -> *mut c_void;
     pub fn au_parameter_tree_snapshot_json(ptr: *mut c_void) -> *mut c_char;
     pub fn au_parameter_tree_parameter_with_address(tree: *mut c_void, address: u64)
         -> *mut c_void;

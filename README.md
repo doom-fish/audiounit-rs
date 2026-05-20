@@ -2,7 +2,7 @@
 
 Safe Rust bindings for Apple's **`AudioUnit`** / **`AVFAudio`** APIs on macOS.
 
-> **Status:** v0.2.1 closes the sampled SDK gaps with advanced `AUAudioUnit` render/MIDI/host-control helpers, capture-backed parameter observers, raw legacy `AudioUnit` / `MusicDevice` wrappers, richer component queries, and dedicated wrappers for `AVAudioUnitSampler`, `AVAudioUnitEQ`, `AVAudioUnitDelay`, `AVAudioUnitDistortion`, `AVAudioUnitReverb`, `AVAudioUnitTimeEffect`, `AVAudioUnitTimePitch`, and `AVAudioUnitVarispeed`.
+> **Status:** v0.3.0 adds executor-agnostic async capture streams for `AUAudioUnit` render/MIDI callback surfaces and `AUParameterTree` observer capture on top of the existing advanced synchronous wrappers.
 
 ## Quick start
 
@@ -74,6 +74,35 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 - `ComponentManager::components_matching(AudioComponentDescription)` — wraps `AVAudioUnitComponentManager`.
 - `AudioUnitComponent` — `name`, `type_name`, `manufacturer_name`, `version`, `version_string`, `has_custom_view`, `is_sandbox_safe`, `audio_component_description`, tags, architectures, and configuration metadata.
 - Legacy raw C helpers remain available for property/parameter access and render callbacks, plus direct `AudioComponentInstance*`, `AudioOutputUnit*`, `AudioUnitInitialize` / `AudioUnitRender` / `AudioUnitScheduleParameters`, property listeners, and `MusicDevice*` MIDI / note / `SysEx` entry points.
+
+## Async capture streams
+
+Enable the `async` feature for executor-agnostic streams that drain the existing capture buffers on a lightweight polling thread.
+
+```toml
+[dependencies]
+audiounit = { version = "0.3.0", features = ["async"] }
+```
+
+```rust,no_run
+use audiounit::prelude::*;
+
+# async fn run() -> Result<(), audiounit::AuError> {
+let unit = AuAudioUnit::instantiate(
+    AudioComponentDescription::apple(
+        AUDIO_UNIT_TYPE_OUTPUT,
+        AUDIO_UNIT_SUBTYPE_DEFAULT_OUTPUT,
+    ),
+    InstantiationOptions::InProcess,
+)?;
+let stream = unit.render_observer_stream(128)?;
+
+while let Some(event) = stream.next().await {
+    println!("{:?}", event?);
+}
+# Ok(())
+# }
+```
 
 ## Examples and tests
 

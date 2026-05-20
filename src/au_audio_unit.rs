@@ -275,6 +275,17 @@ impl AuAudioUnit {
         Self { ptr }
     }
 
+    pub(crate) fn retained(&self) -> Result<Self, AuError> {
+        let ptr = unsafe { ffi::au_auaudiounit_retain(self.ptr) };
+        if ptr.is_null() {
+            Err(AuError::Unavailable(
+                "AUAudioUnit retain returned null".to_owned(),
+            ))
+        } else {
+            Ok(Self { ptr })
+        }
+    }
+
     /// Instantiate an `AUAudioUnit` directly.
     pub fn instantiate(
         description: AudioComponentDescription,
@@ -421,6 +432,36 @@ impl AuAudioUnit {
     /// Remove a previously installed render observer.
     pub fn remove_render_observer(&self, token: AuRenderObserverToken) {
         unsafe { ffi::au_auaudiounit_remove_render_observer_capture(self.ptr, token.raw) };
+    }
+
+    /// Subscribe to async render-observer capture events.
+    #[cfg(feature = "async")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
+    pub fn render_observer_stream(
+        &self,
+        capacity: usize,
+    ) -> Result<crate::async_api::AuRenderObserverStream, AuError> {
+        crate::async_api::AuRenderObserverStream::subscribe(self, capacity)
+    }
+
+    /// Subscribe to async MIDI output capture events.
+    #[cfg(feature = "async")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
+    pub fn midi_output_event_stream(
+        &self,
+        capacity: usize,
+    ) -> Result<crate::async_api::AuMidiOutputEventStream, AuError> {
+        crate::async_api::AuMidiOutputEventStream::subscribe(self, capacity)
+    }
+
+    /// Subscribe to async MIDI event-list capture summaries.
+    #[cfg(feature = "async")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
+    pub fn midi_output_event_list_stream(
+        &self,
+        capacity: usize,
+    ) -> Result<crate::async_api::AuMidiOutputEventListStream, AuError> {
+        crate::async_api::AuMidiOutputEventListStream::subscribe(self, capacity)
     }
 
     /// Invoke `scheduleMIDIEventBlock` with raw MIDI 1.0 bytes.

@@ -12,6 +12,7 @@ unsafe extern "C" {
         out_error_msg: *mut *mut c_char,
     ) -> i32;
     pub fn au_auaudiounit_release(ptr: *mut c_void);
+    pub fn au_auaudiounit_retain(ptr: *mut c_void) -> *mut c_void;
     pub fn au_auaudiounit_snapshot_json(ptr: *mut c_void) -> *mut c_char;
     pub fn au_auaudiounit_component(ptr: *mut c_void) -> *mut c_void;
     pub fn au_auaudiounit_allocate_render_resources(

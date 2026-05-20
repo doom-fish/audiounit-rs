@@ -87,6 +87,17 @@ impl AuParameterTree {
         Self { ptr }
     }
 
+    pub(crate) fn retained(&self) -> Result<Self, AuError> {
+        let ptr = unsafe { ffi::au_parameter_tree_retain(self.ptr) };
+        if ptr.is_null() {
+            Err(AuError::Unavailable(
+                "AUParameterTree retain returned null".to_owned(),
+            ))
+        } else {
+            Ok(Self { ptr })
+        }
+    }
+
     /// Returns the full tree as JSON.
     pub fn to_json(&self) -> String {
         unsafe { take_string(ffi::au_parameter_tree_snapshot_json(self.ptr)).unwrap_or_default() }
@@ -209,5 +220,35 @@ impl AuParameterTree {
     /// Remove a previously registered tree observer token.
     pub fn remove_parameter_observer(&self, token: AuParameterObserverToken) {
         unsafe { ffi::au_parameter_tree_remove_parameter_observer(self.ptr, token.raw) };
+    }
+
+    /// Subscribe to async value-observer capture events.
+    #[cfg(feature = "async")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
+    pub fn parameter_observer_stream(
+        &self,
+        capacity: usize,
+    ) -> Result<crate::async_api::AuParameterObserverStream, AuError> {
+        crate::async_api::AuParameterObserverStream::subscribe(self, capacity)
+    }
+
+    /// Subscribe to async recording-observer capture events.
+    #[cfg(feature = "async")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
+    pub fn parameter_recording_stream(
+        &self,
+        capacity: usize,
+    ) -> Result<crate::async_api::AuParameterRecordingStream, AuError> {
+        crate::async_api::AuParameterRecordingStream::subscribe(self, capacity)
+    }
+
+    /// Subscribe to async automation-observer capture events.
+    #[cfg(feature = "async")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "async")))]
+    pub fn parameter_automation_stream(
+        &self,
+        capacity: usize,
+    ) -> Result<crate::async_api::AuParameterAutomationStream, AuError> {
+        crate::async_api::AuParameterAutomationStream::subscribe(self, capacity)
     }
 }

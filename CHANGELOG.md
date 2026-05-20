@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.0] - 2026-05-20
+
+### Added
+
+- `async` feature plus `async_api` streams for `AUAudioUnit` render-observer capture, MIDI output capture, MIDI event-list capture, and `AUParameterTree` observer, recording, and automation capture surfaces.
+- Ergonomic `render_observer_stream`, `midi_output_event_stream`, `midi_output_event_list_stream`, `parameter_observer_stream`, `parameter_recording_stream`, and `parameter_automation_stream` constructors on the owning wrapper types.
+
+### Notes
+
+- Phase 32 completeness + async sweep.
+
 ## [0.2.5] - 2026-05-20
 
 - Added in-`src/` unit tests across `component_description`, `component`, and `error` (Tier 2 quality polish), providing fast `cargo test --lib` fail-fast signal alongside the existing integration tests under `tests/`.

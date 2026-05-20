@@ -448,7 +448,10 @@ mod tests {
     fn all_components_serializes_to_true_variant() {
         let predicate = ComponentPredicate::all_components();
 
-        assert_eq!(serde_json::to_value(predicate).unwrap(), json!({ "kind": "true" }));
+        assert_eq!(
+            serde_json::to_value(predicate).unwrap(),
+            json!({ "kind": "true" })
+        );
     }
 
     #[test]
