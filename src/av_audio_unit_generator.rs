@@ -23,13 +23,11 @@ pub struct AvAudioUnitGenerator {
     ptr: *mut c_void,
 }
 
-unsafe impl Send for AvAudioUnitGenerator {}
-
-impl Drop for AvAudioUnitGenerator {
-    fn drop(&mut self) {
-        unsafe { ffi::au_av_generator_release(self.ptr) };
-    }
-}
+crate::handle::handle_type!(
+    AvAudioUnitGenerator,
+    field = ptr,
+    release = ffi::au_av_generator_release
+);
 
 impl AvAudioUnitGenerator {
     /// Create a generator unit for the given component description.

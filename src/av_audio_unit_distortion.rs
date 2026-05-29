@@ -54,13 +54,11 @@ pub struct AvAudioUnitDistortion {
     ptr: *mut c_void,
 }
 
-unsafe impl Send for AvAudioUnitDistortion {}
-
-impl Drop for AvAudioUnitDistortion {
-    fn drop(&mut self) {
-        unsafe { ffi::au_av_distortion_release(self.ptr) };
-    }
-}
+crate::handle::handle_type!(
+    AvAudioUnitDistortion,
+    field = ptr,
+    release = ffi::au_av_distortion_release
+);
 
 impl AvAudioUnitDistortion {
     /// Create a distortion unit.

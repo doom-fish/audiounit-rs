@@ -23,13 +23,11 @@ pub struct AvAudioUnitTimeEffect {
     ptr: *mut c_void,
 }
 
-unsafe impl Send for AvAudioUnitTimeEffect {}
-
-impl Drop for AvAudioUnitTimeEffect {
-    fn drop(&mut self) {
-        unsafe { ffi::au_av_time_effect_release(self.ptr) };
-    }
-}
+crate::handle::handle_type!(
+    AvAudioUnitTimeEffect,
+    field = ptr,
+    release = ffi::au_av_time_effect_release
+);
 
 impl AvAudioUnitTimeEffect {
     pub(crate) fn from_raw(ptr: *mut c_void) -> Self {

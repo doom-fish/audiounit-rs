@@ -47,13 +47,7 @@ pub struct AuAudioUnitBus {
     ptr: *mut c_void,
 }
 
-unsafe impl Send for AuAudioUnitBus {}
-
-impl Drop for AuAudioUnitBus {
-    fn drop(&mut self) {
-        unsafe { ffi::au_bus_release(self.ptr) };
-    }
-}
+crate::handle::handle_type!(AuAudioUnitBus, field = ptr, release = ffi::au_bus_release);
 
 impl AuAudioUnitBus {
     pub(crate) fn from_raw(ptr: *mut c_void) -> Self {

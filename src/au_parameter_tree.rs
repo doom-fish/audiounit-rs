@@ -73,14 +73,12 @@ pub struct AuParameterTree {
     ptr: *mut c_void,
 }
 
-unsafe impl Send for AuParameterTree {}
-unsafe impl Sync for AuParameterTree {}
-
-impl Drop for AuParameterTree {
-    fn drop(&mut self) {
-        unsafe { ffi::au_parameter_tree_release(self.ptr) };
-    }
-}
+crate::handle::handle_type!(
+    AuParameterTree,
+    field = ptr,
+    release = ffi::au_parameter_tree_release,
+    sync
+);
 
 impl AuParameterTree {
     pub(crate) fn from_raw(ptr: *mut c_void) -> Self {

@@ -51,13 +51,7 @@ pub struct AuVoiceIo {
 /// Alias preserving Apple's acronym casing.
 pub type AuVoiceIO = AuVoiceIo;
 
-unsafe impl Send for AuVoiceIo {}
-
-impl Drop for AuVoiceIo {
-    fn drop(&mut self) {
-        unsafe { ffi::au_voice_io_release(self.ptr) };
-    }
-}
+crate::handle::handle_type!(AuVoiceIo, field = ptr, release = ffi::au_voice_io_release);
 
 impl AuVoiceIo {
     /// Create a new voice-processing I/O unit.

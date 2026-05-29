@@ -98,7 +98,7 @@ pub struct AudioTimeStamp {
     pub host_time: u64,
     pub rate_scalar: f64,
     pub word_clock_time: u64,
-    _smpte_time: [u8; 32],
+    _smpte_time: [u8; 24],
     pub flags: u32,
     pub reserved: u32,
 }
@@ -257,6 +257,73 @@ impl AudioUnitParameterEvent {
             },
         }
     }
+}
+
+// MARK: - ABI Layout Assertions
+//
+// The `#[repr(C)]` structs above mirror Apple's `AudioToolbox` /
+// `CoreAudioTypes` C structs and are passed by value (or via packed buffers)
+// across the raw C FFI boundary (e.g. `AURenderCallback`,
+// `AudioUnitScheduleParameters`, `MusicDeviceStartNote`). If their size or
+// alignment ever drifts from the OS ABI, the data marshalling silently
+// corrupts.
+//
+// These compile-time assertions pin the exact ABI: any change to a field type,
+// field order, or padding fails the build immediately instead of producing
+// runtime garbage. The cross-language `au_verify_ffi_layout` check in
+// `tests/legacy_layout_tests.rs` additionally validates these against the real
+// `MemoryLayout` of the OS types via the Swift bridge.
+//
+// `offset_of!` is intentionally not used: the crate MSRV (1.76) predates its
+// stabilization (1.77), so layout is pinned via `size_of` / `align_of`.
+use core::mem::{align_of, size_of};
+
+const _: () = assert!(size_of::<AURenderCallbackStruct>() == 16);
+const _: () = assert!(align_of::<AURenderCallbackStruct>() == 8);
+
+const _: () = assert!(size_of::<AudioTimeStamp>() == 64);
+const _: () = assert!(align_of::<AudioTimeStamp>() == 8);
+
+const _: () = assert!(size_of::<AudioBuffer>() == 16);
+const _: () = assert!(align_of::<AudioBuffer>() == 8);
+
+const _: () = assert!(size_of::<AudioBufferList>() == 24);
+const _: () = assert!(align_of::<AudioBufferList>() == 8);
+
+const _: () = assert!(size_of::<AudioStreamBasicDescription>() == 40);
+const _: () = assert!(align_of::<AudioStreamBasicDescription>() == 8);
+
+const _: () = assert!(size_of::<NoteParamsControlValue>() == 8);
+const _: () = assert!(align_of::<NoteParamsControlValue>() == 4);
+
+const _: () = assert!(size_of::<MusicDeviceStdNoteParams>() == 12);
+const _: () = assert!(align_of::<MusicDeviceStdNoteParams>() == 4);
+
+const _: () = assert!(size_of::<MusicDeviceNoteParams>() == 20);
+const _: () = assert!(align_of::<MusicDeviceNoteParams>() == 4);
+
+const _: () = assert!(size_of::<AudioUnitParameterEventImmediate>() == 8);
+const _: () = assert!(align_of::<AudioUnitParameterEventImmediate>() == 4);
+
+const _: () = assert!(size_of::<AudioUnitParameterEventRamp>() == 16);
+const _: () = assert!(align_of::<AudioUnitParameterEventRamp>() == 4);
+
+const _: () = assert!(size_of::<AudioUnitParameterEventValue>() == 16);
+const _: () = assert!(align_of::<AudioUnitParameterEventValue>() == 4);
+
+const _: () = assert!(size_of::<AudioUnitParameterEvent>() == 32);
+const _: () = assert!(align_of::<AudioUnitParameterEvent>() == 4);
+
+// MARK: - Cross-language ABI check
+extern "C" {
+    /// Cross-language ABI check implemented in the Swift bridge.
+    ///
+    /// Returns `true` only if the Swift `MemoryLayout` (size, stride and
+    /// alignment) of the real `AudioToolbox` / `CoreAudioTypes` structs matches
+    /// the values pinned on the Rust side above. A `false` return means the
+    /// Rust definitions disagree with the OS ABI, which is a real bug.
+    /// Verified by `tests/legacy_layout_tests.rs`.
+    pub fn au_verify_ffi_layout() -> bool;
 }
 
 #[link(name = "AudioToolbox", kind = "framework")]

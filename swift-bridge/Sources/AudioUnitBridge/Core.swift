@@ -214,3 +214,33 @@ func instantiateAUAudioUnitSync(
 
     return result ?? .failure(makeBridgeError("AUAudioUnit instantiation completed without a result", code: Int(AU_UNKNOWN)))
 }
+
+// MARK: - ABI Layout Verification
+
+/// Cross-language ABI check consumed by `tests/legacy_layout_tests.rs`.
+///
+/// Returns `true` only if the Swift `MemoryLayout` (size and alignment) of the
+/// real `AudioToolbox` / `CoreAudioTypes` structs matches the values pinned on
+/// the Rust side in `src/legacy.rs`. A `false` return means the Rust `#[repr(C)]`
+/// definitions disagree with the OS ABI, which is a real marshalling bug.
+@_cdecl("au_verify_ffi_layout")
+public func au_verify_ffi_layout() -> Bool {
+    return MemoryLayout<AURenderCallbackStruct>.size == 16
+        && MemoryLayout<AURenderCallbackStruct>.alignment == 8
+        && MemoryLayout<AudioTimeStamp>.size == 64
+        && MemoryLayout<AudioTimeStamp>.alignment == 8
+        && MemoryLayout<AudioBuffer>.size == 16
+        && MemoryLayout<AudioBuffer>.alignment == 8
+        && MemoryLayout<AudioBufferList>.size == 24
+        && MemoryLayout<AudioBufferList>.alignment == 8
+        && MemoryLayout<AudioStreamBasicDescription>.size == 40
+        && MemoryLayout<AudioStreamBasicDescription>.alignment == 8
+        && MemoryLayout<NoteParamsControlValue>.size == 8
+        && MemoryLayout<NoteParamsControlValue>.alignment == 4
+        && MemoryLayout<MusicDeviceStdNoteParams>.size == 12
+        && MemoryLayout<MusicDeviceStdNoteParams>.alignment == 4
+        && MemoryLayout<MusicDeviceNoteParams>.size == 20
+        && MemoryLayout<MusicDeviceNoteParams>.alignment == 4
+        && MemoryLayout<AudioUnitParameterEvent>.size == 32
+        && MemoryLayout<AudioUnitParameterEvent>.alignment == 4
+}

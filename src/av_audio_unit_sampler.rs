@@ -31,13 +31,11 @@ pub struct AvAudioUnitSampler {
     ptr: *mut c_void,
 }
 
-unsafe impl Send for AvAudioUnitSampler {}
-
-impl Drop for AvAudioUnitSampler {
-    fn drop(&mut self) {
-        unsafe { ffi::au_av_sampler_release(self.ptr) };
-    }
-}
+crate::handle::handle_type!(
+    AvAudioUnitSampler,
+    field = ptr,
+    release = ffi::au_av_sampler_release
+);
 
 impl AvAudioUnitSampler {
     /// Create a sampler unit.

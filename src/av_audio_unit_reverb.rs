@@ -43,13 +43,11 @@ pub struct AvAudioUnitReverb {
     ptr: *mut c_void,
 }
 
-unsafe impl Send for AvAudioUnitReverb {}
-
-impl Drop for AvAudioUnitReverb {
-    fn drop(&mut self) {
-        unsafe { ffi::au_av_reverb_release(self.ptr) };
-    }
-}
+crate::handle::handle_type!(
+    AvAudioUnitReverb,
+    field = ptr,
+    release = ffi::au_av_reverb_release
+);
 
 impl AvAudioUnitReverb {
     /// Create a reverb unit.

@@ -48,14 +48,12 @@ pub struct AuParameter {
     ptr: *mut c_void,
 }
 
-unsafe impl Send for AuParameter {}
-unsafe impl Sync for AuParameter {}
-
-impl Drop for AuParameter {
-    fn drop(&mut self) {
-        unsafe { ffi::au_parameter_release(self.ptr) };
-    }
-}
+crate::handle::handle_type!(
+    AuParameter,
+    field = ptr,
+    release = ffi::au_parameter_release,
+    sync
+);
 
 impl AuParameter {
     pub(crate) fn from_raw(ptr: *mut c_void) -> Self {

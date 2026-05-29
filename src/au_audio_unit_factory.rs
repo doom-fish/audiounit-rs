@@ -13,13 +13,11 @@ pub struct AuAudioUnitFactory {
     ptr: *mut c_void,
 }
 
-unsafe impl Send for AuAudioUnitFactory {}
-
-impl Drop for AuAudioUnitFactory {
-    fn drop(&mut self) {
-        unsafe { ffi::au_factory_release(self.ptr) };
-    }
-}
+crate::handle::handle_type!(
+    AuAudioUnitFactory,
+    field = ptr,
+    release = ffi::au_factory_release
+);
 
 impl AuAudioUnitFactory {
     /// Create a new bridge-backed factory instance.

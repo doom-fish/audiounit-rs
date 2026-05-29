@@ -25,13 +25,11 @@ pub struct AvAudioUnitTimePitch {
     ptr: *mut c_void,
 }
 
-unsafe impl Send for AvAudioUnitTimePitch {}
-
-impl Drop for AvAudioUnitTimePitch {
-    fn drop(&mut self) {
-        unsafe { ffi::au_av_time_pitch_release(self.ptr) };
-    }
-}
+crate::handle::handle_type!(
+    AvAudioUnitTimePitch,
+    field = ptr,
+    release = ffi::au_av_time_pitch_release
+);
 
 impl AvAudioUnitTimePitch {
     /// Create a time-pitch unit.

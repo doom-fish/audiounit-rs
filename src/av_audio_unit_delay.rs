@@ -29,13 +29,11 @@ pub struct AvAudioUnitDelay {
     ptr: *mut c_void,
 }
 
-unsafe impl Send for AvAudioUnitDelay {}
-
-impl Drop for AvAudioUnitDelay {
-    fn drop(&mut self) {
-        unsafe { ffi::au_av_delay_release(self.ptr) };
-    }
-}
+crate::handle::handle_type!(
+    AvAudioUnitDelay,
+    field = ptr,
+    release = ffi::au_av_delay_release
+);
 
 impl AvAudioUnitDelay {
     /// Create a delay unit.

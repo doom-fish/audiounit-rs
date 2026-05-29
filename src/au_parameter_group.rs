@@ -16,14 +16,12 @@ pub struct AuParameterGroup {
     ptr: *mut c_void,
 }
 
-unsafe impl Send for AuParameterGroup {}
-unsafe impl Sync for AuParameterGroup {}
-
-impl Drop for AuParameterGroup {
-    fn drop(&mut self) {
-        unsafe { ffi::au_parameter_group_release(self.ptr) };
-    }
-}
+crate::handle::handle_type!(
+    AuParameterGroup,
+    field = ptr,
+    release = ffi::au_parameter_group_release,
+    sync
+);
 
 impl AuParameterGroup {
     pub(crate) fn from_raw(ptr: *mut c_void) -> Self {

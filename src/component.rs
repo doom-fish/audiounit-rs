@@ -131,14 +131,12 @@ pub struct AudioUnitComponent {
     ptr: *mut c_void,
 }
 
-unsafe impl Send for AudioUnitComponent {}
-unsafe impl Sync for AudioUnitComponent {}
-
-impl Drop for AudioUnitComponent {
-    fn drop(&mut self) {
-        unsafe { ffi::au_avc_component_release(self.ptr) };
-    }
-}
+crate::handle::handle_type!(
+    AudioUnitComponent,
+    field = ptr,
+    release = ffi::au_avc_component_release,
+    sync
+);
 
 impl AudioUnitComponent {
     fn new(ptr: *mut c_void) -> Self {

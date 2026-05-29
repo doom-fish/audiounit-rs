@@ -221,13 +221,11 @@ pub struct AuMessageChannel {
     ptr: *mut c_void,
 }
 
-unsafe impl Send for AuMessageChannel {}
-
-impl Drop for AuMessageChannel {
-    fn drop(&mut self) {
-        unsafe { ffi::au_message_channel_release(self.ptr) };
-    }
-}
+crate::handle::handle_type!(
+    AuMessageChannel,
+    field = ptr,
+    release = ffi::au_message_channel_release
+);
 
 impl AuMessageChannel {
     pub(crate) fn from_raw(ptr: *mut c_void) -> Self {
@@ -262,13 +260,11 @@ pub struct AuAudioUnit {
     pub(crate) ptr: *mut c_void,
 }
 
-unsafe impl Send for AuAudioUnit {}
-
-impl Drop for AuAudioUnit {
-    fn drop(&mut self) {
-        unsafe { ffi::au_auaudiounit_release(self.ptr) };
-    }
-}
+crate::handle::handle_type!(
+    AuAudioUnit,
+    field = ptr,
+    release = ffi::au_auaudiounit_release
+);
 
 impl AuAudioUnit {
     pub(crate) fn from_raw(ptr: *mut c_void) -> Self {

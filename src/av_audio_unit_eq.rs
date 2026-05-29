@@ -92,13 +92,11 @@ pub struct AvAudioUnitEqBand {
 /// Alias preserving Apple's acronym casing.
 pub type AvAudioUnitEQBand = AvAudioUnitEqBand;
 
-unsafe impl Send for AvAudioUnitEqBand {}
-
-impl Drop for AvAudioUnitEqBand {
-    fn drop(&mut self) {
-        unsafe { ffi::au_av_eq_band_release(self.ptr) };
-    }
-}
+crate::handle::handle_type!(
+    AvAudioUnitEqBand,
+    field = ptr,
+    release = ffi::au_av_eq_band_release
+);
 
 impl AvAudioUnitEqBand {
     fn from_raw(ptr: *mut c_void) -> Self {
@@ -174,13 +172,7 @@ pub type AvAudioUnitEQ = AvAudioUnitEq;
 /// Alias preserving Apple's acronym casing.
 pub type AvAudioUnitEQFilterType = AvAudioUnitEqFilterType;
 
-unsafe impl Send for AvAudioUnitEq {}
-
-impl Drop for AvAudioUnitEq {
-    fn drop(&mut self) {
-        unsafe { ffi::au_av_eq_release(self.ptr) };
-    }
-}
+crate::handle::handle_type!(AvAudioUnitEq, field = ptr, release = ffi::au_av_eq_release);
 
 impl AvAudioUnitEq {
     /// Create an EQ with the requested number of bands.

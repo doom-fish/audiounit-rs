@@ -27,13 +27,11 @@ pub struct AvAudioUnitMidiInstrument {
 /// Backwards-friendly alias preserving Apple's acronym casing.
 pub type AvAudioUnitMIDIInstrument = AvAudioUnitMidiInstrument;
 
-unsafe impl Send for AvAudioUnitMidiInstrument {}
-
-impl Drop for AvAudioUnitMidiInstrument {
-    fn drop(&mut self) {
-        unsafe { ffi::au_av_midi_instrument_release(self.ptr) };
-    }
-}
+crate::handle::handle_type!(
+    AvAudioUnitMidiInstrument,
+    field = ptr,
+    release = ffi::au_av_midi_instrument_release
+);
 
 impl AvAudioUnitMidiInstrument {
     pub(crate) fn from_raw(ptr: *mut c_void) -> Self {

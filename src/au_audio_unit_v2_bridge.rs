@@ -23,13 +23,11 @@ pub struct AuAudioUnitV2Bridge {
     ptr: *mut c_void,
 }
 
-unsafe impl Send for AuAudioUnitV2Bridge {}
-
-impl Drop for AuAudioUnitV2Bridge {
-    fn drop(&mut self) {
-        unsafe { ffi::au_v2_bridge_release(self.ptr) };
-    }
-}
+crate::handle::handle_type!(
+    AuAudioUnitV2Bridge,
+    field = ptr,
+    release = ffi::au_v2_bridge_release
+);
 
 impl AuAudioUnitV2Bridge {
     pub(crate) fn from_au_audio_unit(unit: &AuAudioUnit) -> Option<Self> {

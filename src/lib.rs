@@ -37,6 +37,7 @@ pub mod component;
 pub mod component_description;
 pub mod error;
 pub mod ffi;
+mod handle;
 pub mod legacy;
 pub mod parameter;
 pub mod unit;

@@ -23,13 +23,11 @@ pub struct AvAudioUnitVarispeed {
     ptr: *mut c_void,
 }
 
-unsafe impl Send for AvAudioUnitVarispeed {}
-
-impl Drop for AvAudioUnitVarispeed {
-    fn drop(&mut self) {
-        unsafe { ffi::au_av_varispeed_release(self.ptr) };
-    }
-}
+crate::handle::handle_type!(
+    AvAudioUnitVarispeed,
+    field = ptr,
+    release = ffi::au_av_varispeed_release
+);
 
 impl AvAudioUnitVarispeed {
     /// Create a varispeed unit.
