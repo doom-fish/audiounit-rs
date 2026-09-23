@@ -1,14 +1,16 @@
 # audiounit-rs coverage audit v2 (vs MacOSX26.2.sdk)
 
-SDK_PUBLIC_SYMBOLS: 200+
-VERIFIED: 173
-GAPS: 0
+SDK_PUBLIC_SYMBOLS: 178
+VERIFIED: 168
+GAPS: 5
 EXEMPT: 5
-COVERAGE_PCT: 100.00%
+COVERAGE_PCT: 97.11%
 
 ## Methodology
 
-This v2 audit builds on the v1 sample of 173 high-signal symbols and expands the enumeration by systematically examining `AudioUnit.framework` umbrella headers (which forward to `AudioToolbox.framework`), `AudioToolbox` itself, and `AVFAudio.framework` AUAudioUnit-family declarations across macOS 26.2.sdk. The scope includes legacy AudioUnit/MusicDevice control APIs, modern AUAudioUnit parameter/bus/factory APIs, VoiceProcessing I/O properties, and AVAudioUnit derivative classes (Sampler, EQ, Delay, Distortion, Reverb, TimeEffect, TimePitch, Varispeed, Effect, Generator, MIDIInstrument, ComponentManager). Enum constants and deprecated symbols were re-validated against SDK availability attributes; all v1 EXEMPT entries remain valid under their original API_DEPRECATED or API_UNAVAILABLE annotations. Full enumeration was approached but capped at 200+ due to the high cardinality of constants—the sampled 173 symbols represent the most impactful public APIs, with all verified as implemented in the crate.
+This file repeats the v1 sample; it was not expanded to a full enumeration. The earlier text here claimed "200+" symbols and 173 verified, which did not match its own rows: the sample holds 168 wrapped symbols and 5 exemptions, and the five GAPS rows were added because an audit found them missing. The v1 EXEMPT entries still carry their API_DEPRECATED or API_UNAVAILABLE annotations.
+
+What the numbers measure: the rows are a hand-picked sample of the `AudioUnit.framework` and `AVFAudio.framework` surface, not a full enumeration. VERIFIED means a Rust item wraps the symbol. GAPS lists known unwrapped members that an audit flagged; other unsampled symbols may be unwrapped too. `COVERAGE_PCT` is VERIFIED / (SDK_PUBLIC_SYMBOLS - EXEMPT).
 
 ## 🟢 VERIFIED
 | Symbol | Kind | Header | Wrapped by |
@@ -142,14 +144,14 @@ This v2 audit builds on the v1 sample of 173 high-signal symbols and expands the
 | `MusicDeviceStopNote` | function | `MusicDevice.h` | `legacy::music_device_stop_note` |
 | `MusicDeviceSysEx` | function | `MusicDevice.h` | `legacy::music_device_sysex` |
 | `AUAudioUnit.component` | property | `AUAudioUnit.h` | `AuAudioUnit::component_ptr` |
-| `AUAudioUnit.renderBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::render` |
+| `AUAudioUnit.renderBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::render` (optional pull-input callback) |
 | `AUAudioUnit.scheduleParameterBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::schedule_parameter` |
 | `AUAudioUnit.tokenByAddingRenderObserver:` | method | `AUAudioUnit.h` | `AuAudioUnit::add_render_observer_capture` |
-| `AUAudioUnit.removeRenderObserver:` | method | `AUAudioUnit.h` | `AuAudioUnit::remove_render_observer` |
+| `AUAudioUnit.removeRenderObserver:` | method | `AUAudioUnit.h` | `Drop for AuRenderObserverToken` |
 | `AUAudioUnit.scheduleMIDIEventBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::schedule_midi_event` |
 | `AUAudioUnit.scheduleMIDIEventListBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::schedule_midi_event_list_raw` |
-| `AUAudioUnit.MIDIOutputEventBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::set_midi_output_event_capture_enabled and take_captured_midi_output_events` |
-| `AUAudioUnit.MIDIOutputEventListBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::set_midi_output_event_list_capture_enabled and take_captured_midi_output_event_lists` |
+| `AUAudioUnit.MIDIOutputEventBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::add_midi_output_capture` (chains the installed block) |
+| `AUAudioUnit.MIDIOutputEventListBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::add_midi_output_event_list_capture` (protocol and packet count only) |
 | `AUAudioUnit.musicalContextBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::set_musical_context and musical_context` |
 | `AUAudioUnit.transportStateBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::set_transport_state and transport_state` |
 | `AUAudioUnit.profileStateForCable:channel:` | method | `AUAudioUnit.h` | `AuAudioUnit::profile_state_for_cable_channel` |
@@ -164,7 +166,7 @@ This v2 audit builds on the v1 sample of 173 high-signal symbols and expands the
 | `AUParameterNode.tokenByAddingParameterObserver:` | method | `AUParameters.h` | `AuParameterTree::add_parameter_observer_capture` |
 | `AUParameterNode.tokenByAddingParameterRecordingObserver:` | method | `AUParameters.h` | `AuParameterTree::add_parameter_recording_observer_capture` |
 | `AUParameterNode.tokenByAddingParameterAutomationObserver:` | method | `AUParameters.h` | `AuParameterTree::add_parameter_automation_observer_capture` |
-| `AUParameterNode.removeParameterObserver:` | method | `AUParameters.h` | `AuParameterTree::remove_parameter_observer` |
+| `AUParameterNode.removeParameterObserver:` | method | `AUParameters.h` | `Drop for AuParameterObserverToken` |
 | `AVAudioUnit.loadAudioUnitPresetAtURL:error:` | method | `AVAudioUnit.h` | `AvAudioUnit::load_audio_unit_preset` |
 | `AVAudioUnitComponentManager.componentsMatchingPredicate:` | method | `AVAudioUnitComponent.h` | `ComponentManager::components_matching_predicate` |
 | `AVAudioUnitComponentManager.componentsPassingTest:` | method | `AVAudioUnitComponent.h` | `ComponentManager::components_passing_test` |
@@ -185,6 +187,11 @@ This v2 audit builds on the v1 sample of 173 high-signal symbols and expands the
 ## 🔴 GAPS
 | Symbol | Kind | Header | Notes |
 | --- | --- | --- | --- |
+| `AUAudioUnit.outputProvider` | property | `AUAudioUnit.h` | Not wrapped; drive I/O units with `legacy::audio_unit_set_render_callback` |
+| `AUAudioUnit.inputHandler` | property | `AUAudioUnit.h` | Not wrapped |
+| `AUAudioUnit.saveUserPreset:error:` | method | `AUAudioUnit.h` | Not wrapped |
+| `AUAudioUnit.deleteUserPreset:error:` | method | `AUAudioUnit.h` | Not wrapped |
+| `AUAudioUnit.presetStateFor:error:` | method | `AUAudioUnit.h` | Not wrapped |
 
 ## ⏭️ EXEMPT
 | Symbol | Kind | Header | Reason | SDK attribute |

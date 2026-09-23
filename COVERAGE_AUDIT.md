@@ -2,13 +2,15 @@
 
 Scope note: `AudioUnit.framework` in MacOSX26.2.sdk is a thin umbrella that reexports `AudioToolbox.framework` headers. This audit treats those reexported `AudioToolbox` declarations as the `AudioUnit.framework` public surface.
 
-Sampling note: the combined `AudioUnit.framework` + `AVFAudio.framework` AUAudioUnit-family surface is large, so this audit samples **173 high-signal public symbols** across modern `AUAudioUnit` / parameter APIs, legacy `AudioUnit` / `MusicDevice` control APIs, VoiceProcessing I/O properties, and the `AVAudioUnit` family.
+Sampling note: the combined `AudioUnit.framework` + `AVFAudio.framework` AUAudioUnit-family surface is large, so this audit samples **178 public symbols** across modern `AUAudioUnit` / parameter APIs, legacy `AudioUnit` / `MusicDevice` control APIs, VoiceProcessing I/O properties, and the `AVAudioUnit` family. The original sample of 173 was selected by hand; the five GAPS rows were added because an audit found them missing.
 
-SDK_PUBLIC_SYMBOLS: 173
+What the numbers measure: the rows are a hand-picked sample of the `AudioUnit.framework` and `AVFAudio.framework` surface, not a full enumeration. VERIFIED means a Rust item wraps the symbol. GAPS lists known unwrapped members that an audit flagged; other unsampled symbols may be unwrapped too. `COVERAGE_PCT` is VERIFIED / (SDK_PUBLIC_SYMBOLS - EXEMPT).
+
+SDK_PUBLIC_SYMBOLS: 178
 VERIFIED: 168
-GAPS: 0
+GAPS: 5
 EXEMPT: 5
-COVERAGE_PCT: 100.00%
+COVERAGE_PCT: 97.11%
 
 ## 🟢 VERIFIED
 | Symbol | Kind | Header | Wrapped by |
@@ -142,14 +144,14 @@ COVERAGE_PCT: 100.00%
 | `MusicDeviceStopNote` | function | `MusicDevice.h` | `legacy::music_device_stop_note` |
 | `MusicDeviceSysEx` | function | `MusicDevice.h` | `legacy::music_device_sysex` |
 | `AUAudioUnit.component` | property | `AUAudioUnit.h` | `AuAudioUnit::component_ptr` |
-| `AUAudioUnit.renderBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::render` |
+| `AUAudioUnit.renderBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::render` (optional pull-input callback) |
 | `AUAudioUnit.scheduleParameterBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::schedule_parameter` |
 | `AUAudioUnit.tokenByAddingRenderObserver:` | method | `AUAudioUnit.h` | `AuAudioUnit::add_render_observer_capture` |
-| `AUAudioUnit.removeRenderObserver:` | method | `AUAudioUnit.h` | `AuAudioUnit::remove_render_observer` |
+| `AUAudioUnit.removeRenderObserver:` | method | `AUAudioUnit.h` | `Drop for AuRenderObserverToken` |
 | `AUAudioUnit.scheduleMIDIEventBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::schedule_midi_event` |
 | `AUAudioUnit.scheduleMIDIEventListBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::schedule_midi_event_list_raw` |
-| `AUAudioUnit.MIDIOutputEventBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::set_midi_output_event_capture_enabled and take_captured_midi_output_events` |
-| `AUAudioUnit.MIDIOutputEventListBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::set_midi_output_event_list_capture_enabled and take_captured_midi_output_event_lists` |
+| `AUAudioUnit.MIDIOutputEventBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::add_midi_output_capture` (chains the installed block) |
+| `AUAudioUnit.MIDIOutputEventListBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::add_midi_output_event_list_capture` (protocol and packet count only) |
 | `AUAudioUnit.musicalContextBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::set_musical_context and musical_context` |
 | `AUAudioUnit.transportStateBlock` | property | `AUAudioUnit.h` | `AuAudioUnit::set_transport_state and transport_state` |
 | `AUAudioUnit.profileStateForCable:channel:` | method | `AUAudioUnit.h` | `AuAudioUnit::profile_state_for_cable_channel` |
@@ -164,7 +166,7 @@ COVERAGE_PCT: 100.00%
 | `AUParameterNode.tokenByAddingParameterObserver:` | method | `AUParameters.h` | `AuParameterTree::add_parameter_observer_capture` |
 | `AUParameterNode.tokenByAddingParameterRecordingObserver:` | method | `AUParameters.h` | `AuParameterTree::add_parameter_recording_observer_capture` |
 | `AUParameterNode.tokenByAddingParameterAutomationObserver:` | method | `AUParameters.h` | `AuParameterTree::add_parameter_automation_observer_capture` |
-| `AUParameterNode.removeParameterObserver:` | method | `AUParameters.h` | `AuParameterTree::remove_parameter_observer` |
+| `AUParameterNode.removeParameterObserver:` | method | `AUParameters.h` | `Drop for AuParameterObserverToken` |
 | `AVAudioUnit.loadAudioUnitPresetAtURL:error:` | method | `AVAudioUnit.h` | `AvAudioUnit::load_audio_unit_preset` |
 | `AVAudioUnitComponentManager.componentsMatchingPredicate:` | method | `AVAudioUnitComponent.h` | `ComponentManager::components_matching_predicate` |
 | `AVAudioUnitComponentManager.componentsPassingTest:` | method | `AVAudioUnitComponent.h` | `ComponentManager::components_passing_test` |
@@ -184,6 +186,11 @@ COVERAGE_PCT: 100.00%
 ## 🔴 GAPS
 | Symbol | Kind | Header | Notes |
 | --- | --- | --- | --- |
+| `AUAudioUnit.outputProvider` | property | `AUAudioUnit.h` | Not wrapped; drive I/O units with `legacy::audio_unit_set_render_callback` |
+| `AUAudioUnit.inputHandler` | property | `AUAudioUnit.h` | Not wrapped |
+| `AUAudioUnit.saveUserPreset:error:` | method | `AUAudioUnit.h` | Not wrapped |
+| `AUAudioUnit.deleteUserPreset:error:` | method | `AUAudioUnit.h` | Not wrapped |
+| `AUAudioUnit.presetStateFor:error:` | method | `AUAudioUnit.h` | Not wrapped |
 ## ⏭️ EXEMPT
 | Symbol | Kind | Header | Reason | SDK attribute |
 | --- | --- | --- | --- | --- |
