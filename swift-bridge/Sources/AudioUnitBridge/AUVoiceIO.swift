@@ -32,6 +32,7 @@ private func setVoiceDuckingConfiguration(_ unit: AudioUnit, value: AUVoiceIOOth
 @_cdecl("au_voice_io_create")
 public func au_voice_io_create(
     _ options: UInt32,
+    _ timeoutSeconds: Double,
     _ outUnit: UnsafeMutablePointer<UnsafeMutableRawPointer?>,
     _ outErrorMsg: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>
 ) -> Int32 {
@@ -39,7 +40,8 @@ public func au_voice_io_create(
     outErrorMsg.pointee = nil
     let result = instantiateAVAudioUnitSync(
         description: makeDesc(UInt32(kAudioUnitType_Output), UInt32(kAudioUnitSubType_VoiceProcessingIO), UInt32(kAudioUnitManufacturer_Apple), 0, 0),
-        options: AudioComponentInstantiationOptions(rawValue: options)
+        options: AudioComponentInstantiationOptions(rawValue: options),
+        timeoutSeconds: timeoutSeconds
     )
     switch result {
     case let .success(unit):

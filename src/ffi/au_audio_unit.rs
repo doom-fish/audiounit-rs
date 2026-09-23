@@ -8,6 +8,7 @@ unsafe extern "C" {
         component_flags: u32,
         component_flags_mask: u32,
         options: u32,
+        timeout_seconds: f64,
         out_unit: *mut *mut c_void,
         out_error_msg: *mut *mut c_char,
     ) -> i32;

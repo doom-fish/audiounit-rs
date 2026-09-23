@@ -19,6 +19,7 @@ public func au_instantiate_sync(
     _ flags: UInt32,
     _ flagsMask: UInt32,
     _ options: UInt32,
+    _ timeoutSeconds: Double,
     _ outUnit: UnsafeMutablePointer<UnsafeMutableRawPointer?>,
     _ outErrorMsg: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>
 ) -> Int32 {
@@ -27,7 +28,8 @@ public func au_instantiate_sync(
 
     let result = instantiateAVAudioUnitSync(
         description: makeDesc(type, subtype, manufacturer, flags, flagsMask),
-        options: AudioComponentInstantiationOptions(rawValue: options)
+        options: AudioComponentInstantiationOptions(rawValue: options),
+        timeoutSeconds: timeoutSeconds
     )
 
     switch result {

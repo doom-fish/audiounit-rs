@@ -3,6 +3,7 @@ use core::ffi::{c_char, c_void};
 unsafe extern "C" {
     pub fn au_voice_io_create(
         options: u32,
+        timeout_seconds: f64,
         out_unit: *mut *mut c_void,
         out_error_msg: *mut *mut c_char,
     ) -> i32;

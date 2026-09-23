@@ -64,7 +64,9 @@ pub use au_voice_io::{
     AuVoiceIO, AuVoiceIo, AuVoiceIoInfo, AuVoiceIoOtherAudioDuckingConfiguration,
     AuVoiceIoOtherAudioDuckingLevel,
 };
-pub use av_audio_unit::{AvAudioUnit, AvAudioUnitInfo, InstantiationOptions};
+pub use av_audio_unit::{
+    AvAudioUnit, AvAudioUnitInfo, InstantiationOptions, DEFAULT_INSTANTIATION_TIMEOUT,
+};
 pub use av_audio_unit_delay::{AvAudioUnitDelay, AvAudioUnitDelayInfo};
 pub use av_audio_unit_distortion::{
     AvAudioUnitDistortion, AvAudioUnitDistortionInfo, AvAudioUnitDistortionPreset,
@@ -110,7 +112,9 @@ pub mod prelude {
         AuVoiceIO, AuVoiceIo, AuVoiceIoInfo, AuVoiceIoOtherAudioDuckingConfiguration,
         AuVoiceIoOtherAudioDuckingLevel,
     };
-    pub use crate::av_audio_unit::{AvAudioUnit, AvAudioUnitInfo, InstantiationOptions};
+    pub use crate::av_audio_unit::{
+        AvAudioUnit, AvAudioUnitInfo, InstantiationOptions, DEFAULT_INSTANTIATION_TIMEOUT,
+    };
     pub use crate::av_audio_unit_delay::{AvAudioUnitDelay, AvAudioUnitDelayInfo};
     pub use crate::av_audio_unit_distortion::{
         AvAudioUnitDistortion, AvAudioUnitDistortionInfo, AvAudioUnitDistortionPreset,

@@ -61,12 +61,31 @@ crate::handle::handle_type!(
 impl AuVoiceIo {
     /// Create a new voice-processing I/O unit.
     pub fn new(options: InstantiationOptions) -> Result<Self, AuError> {
+        Self::new_with_timeout(options, crate::av_audio_unit::DEFAULT_INSTANTIATION_TIMEOUT)
+    }
+
+    #[allow(clippy::missing_errors_doc)]
+    pub fn new_with_timeout(
+        options: InstantiationOptions,
+        timeout: std::time::Duration,
+    ) -> Result<Self, AuError> {
+        let timeout_seconds = crate::av_audio_unit::instantiation_timeout_seconds(timeout)?;
         let mut unit_ptr = core::ptr::null_mut();
         let mut error_ptr = core::ptr::null_mut();
         let status = unsafe {
-            ffi::au_voice_io_create(options as u32, &raw mut unit_ptr, &raw mut error_ptr)
+            ffi::au_voice_io_create(
+                options as u32,
+                timeout_seconds,
+                &raw mut unit_ptr,
+                &raw mut error_ptr,
+            )
         };
         status_result(status, error_ptr)?;
+        if unit_ptr.is_null() {
+            return Err(AuError::InstantiateFailed(
+                "voice-processing unit instantiation returned no unit".to_owned(),
+            ));
+        }
         Ok(Self { ptr: unit_ptr })
     }
 

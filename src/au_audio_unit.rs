@@ -2,6 +2,7 @@
 
 use core::ffi::c_void;
 use std::ffi::CString;
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -9,7 +10,7 @@ use serde_json::Value;
 use crate::au_audio_unit_bus_array::AuAudioUnitBusArray;
 use crate::au_audio_unit_v2_bridge::AuAudioUnitV2Bridge;
 use crate::au_parameter_tree::AuParameterTree;
-use crate::av_audio_unit::InstantiationOptions;
+use crate::av_audio_unit::{instantiation_timeout_seconds, InstantiationOptions};
 use crate::component_description::AudioComponentDescription;
 use crate::error::AuError;
 use crate::ffi;
@@ -288,6 +289,20 @@ impl AuAudioUnit {
         description: AudioComponentDescription,
         options: InstantiationOptions,
     ) -> Result<Self, AuError> {
+        Self::instantiate_with_timeout(
+            description,
+            options,
+            crate::av_audio_unit::DEFAULT_INSTANTIATION_TIMEOUT,
+        )
+    }
+
+    #[allow(clippy::missing_errors_doc)]
+    pub fn instantiate_with_timeout(
+        description: AudioComponentDescription,
+        options: InstantiationOptions,
+        timeout: Duration,
+    ) -> Result<Self, AuError> {
+        let timeout_seconds = instantiation_timeout_seconds(timeout)?;
         let mut unit_ptr: *mut c_void = core::ptr::null_mut();
         let mut error_ptr = core::ptr::null_mut();
         let status = unsafe {
@@ -298,11 +313,17 @@ impl AuAudioUnit {
                 description.component_flags,
                 description.component_flags_mask,
                 options as u32,
+                timeout_seconds,
                 &raw mut unit_ptr,
                 &raw mut error_ptr,
             )
         };
         status_result(status, error_ptr)?;
+        if unit_ptr.is_null() {
+            return Err(AuError::InstantiateFailed(
+                "AUAudioUnit instantiation returned no unit".to_owned(),
+            ));
+        }
         Ok(Self { ptr: unit_ptr })
     }
 

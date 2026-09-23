@@ -190,7 +190,7 @@ func instantiateAVAudioUnitSync(
     }
 
     if semaphore.wait(timeout: .now() + timeoutSeconds) == .timedOut {
-        return .failure(makeBridgeError("AVAudioUnit instantiation timed out after \(Int(timeoutSeconds))s", code: Int(AU_TIMED_OUT)))
+        return .failure(makeBridgeError("AVAudioUnit instantiation timed out after \(timeoutSeconds)s", code: Int(AU_TIMED_OUT)))
     }
 
     return result ?? .failure(makeBridgeError("AVAudioUnit instantiation completed without a result", code: Int(AU_UNKNOWN)))
@@ -216,7 +216,7 @@ func instantiateAUAudioUnitSync(
     }
 
     if semaphore.wait(timeout: .now() + timeoutSeconds) == .timedOut {
-        return .failure(makeBridgeError("AUAudioUnit instantiation timed out after \(Int(timeoutSeconds))s", code: Int(AU_TIMED_OUT)))
+        return .failure(makeBridgeError("AUAudioUnit instantiation timed out after \(timeoutSeconds)s", code: Int(AU_TIMED_OUT)))
     }
 
     return result ?? .failure(makeBridgeError("AUAudioUnit instantiation completed without a result", code: Int(AU_UNKNOWN)))

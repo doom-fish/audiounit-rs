@@ -2,6 +2,7 @@
 
 use core::ffi::c_void;
 use std::path::Path;
+use std::time::Duration;
 
 use serde::Deserialize;
 
@@ -38,6 +39,17 @@ pub struct AvAudioUnit {
     ptr: *mut c_void,
 }
 
+pub const DEFAULT_INSTANTIATION_TIMEOUT: Duration = Duration::from_secs(15);
+
+pub(crate) fn instantiation_timeout_seconds(timeout: Duration) -> Result<f64, AuError> {
+    if timeout.is_zero() {
+        return Err(AuError::InvalidArgument(
+            "instantiation timeout must be greater than zero".to_owned(),
+        ));
+    }
+    Ok(timeout.as_secs_f64())
+}
+
 crate::handle::handle_type!(
     AvAudioUnit,
     field = ptr,
@@ -55,6 +67,16 @@ impl AvAudioUnit {
         description: AudioComponentDescription,
         options: InstantiationOptions,
     ) -> Result<Self, AuError> {
+        Self::instantiate_with_timeout(description, options, DEFAULT_INSTANTIATION_TIMEOUT)
+    }
+
+    #[allow(clippy::missing_errors_doc)]
+    pub fn instantiate_with_timeout(
+        description: AudioComponentDescription,
+        options: InstantiationOptions,
+        timeout: Duration,
+    ) -> Result<Self, AuError> {
+        let timeout_seconds = instantiation_timeout_seconds(timeout)?;
         let mut unit_ptr: *mut c_void = core::ptr::null_mut();
         let mut error_ptr = core::ptr::null_mut();
         let status = unsafe {
@@ -65,11 +87,17 @@ impl AvAudioUnit {
                 description.component_flags,
                 description.component_flags_mask,
                 options as u32,
+                timeout_seconds,
                 &raw mut unit_ptr,
                 &raw mut error_ptr,
             )
         };
         status_result(status, error_ptr)?;
+        if unit_ptr.is_null() {
+            return Err(AuError::InstantiateFailed(
+                "AVAudioUnit instantiation returned no unit".to_owned(),
+            ));
+        }
         Ok(Self { ptr: unit_ptr })
     }
 
