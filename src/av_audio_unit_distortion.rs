@@ -57,7 +57,8 @@ pub struct AvAudioUnitDistortion {
 crate::handle::handle_type!(
     AvAudioUnitDistortion,
     field = ptr,
-    release = ffi::au_av_distortion_release
+    release = ffi::au_av_distortion_release,
+    lifecycle
 );
 
 impl AvAudioUnitDistortion {

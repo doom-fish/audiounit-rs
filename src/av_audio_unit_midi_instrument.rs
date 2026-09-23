@@ -30,7 +30,8 @@ pub type AvAudioUnitMIDIInstrument = AvAudioUnitMidiInstrument;
 crate::handle::handle_type!(
     AvAudioUnitMidiInstrument,
     field = ptr,
-    release = ffi::au_av_midi_instrument_release
+    release = ffi::au_av_midi_instrument_release,
+    lifecycle
 );
 
 impl AvAudioUnitMidiInstrument {

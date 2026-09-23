@@ -26,7 +26,8 @@ pub struct AuAudioUnitV2Bridge {
 crate::handle::handle_type!(
     AuAudioUnitV2Bridge,
     field = ptr,
-    release = ffi::au_v2_bridge_release
+    release = ffi::au_v2_bridge_release,
+    lifecycle
 );
 
 impl AuAudioUnitV2Bridge {

@@ -38,7 +38,12 @@ pub struct AvAudioUnit {
     ptr: *mut c_void,
 }
 
-crate::handle::handle_type!(AvAudioUnit, field = ptr, release = ffi::au_avunit_release);
+crate::handle::handle_type!(
+    AvAudioUnit,
+    field = ptr,
+    release = ffi::au_avunit_release,
+    lifecycle
+);
 
 impl AvAudioUnit {
     pub(crate) fn from_raw(ptr: *mut c_void) -> Self {
@@ -78,8 +83,11 @@ impl AvAudioUnit {
     pub fn load_audio_unit_preset<P: AsRef<Path>>(&self, path: P) -> Result<(), AuError> {
         let path = cstring_from_path(path)?;
         let mut error_ptr = core::ptr::null_mut();
-        let status = unsafe {
-            ffi::au_avunit_load_audio_unit_preset(self.ptr, path.as_ptr(), &raw mut error_ptr)
+        let status = {
+            let _lifecycle = crate::lifecycle::lock();
+            unsafe {
+                ffi::au_avunit_load_audio_unit_preset(self.ptr, path.as_ptr(), &raw mut error_ptr)
+            }
         };
         status_result(status, error_ptr)
     }

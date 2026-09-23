@@ -39,6 +39,7 @@ pub mod error;
 pub mod ffi;
 mod handle;
 pub mod legacy;
+mod lifecycle;
 pub mod parameter;
 pub mod unit;
 mod util;

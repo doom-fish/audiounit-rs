@@ -440,6 +440,7 @@ pub unsafe fn audio_component_instance_new(
     component_ptr: AudioComponent,
 ) -> Result<AudioComponentInstance, i32> {
     let mut instance: AudioComponentInstance = core::ptr::null_mut();
+    let _lifecycle = crate::lifecycle::lock();
     let status = AudioComponentInstanceNew(component_ptr, &raw mut instance);
     if status != 0 {
         Err(status)
@@ -455,6 +456,7 @@ pub unsafe fn audio_component_instance_new(
 pub unsafe fn audio_component_instance_dispose(
     instance_ptr: AudioComponentInstance,
 ) -> Result<(), i32> {
+    let _lifecycle = crate::lifecycle::lock();
     let status = AudioComponentInstanceDispose(instance_ptr);
     if status != 0 {
         Err(status)
@@ -494,6 +496,7 @@ pub unsafe fn audio_output_unit_stop(unit_ptr: AudioUnit) -> Result<(), i32> {
 /// # Safety
 /// `unit_ptr` must be a valid `AudioUnit`.
 pub unsafe fn audio_unit_initialize(unit_ptr: AudioUnit) -> Result<(), i32> {
+    let _lifecycle = crate::lifecycle::lock();
     let status = AudioUnitInitialize(unit_ptr);
     if status != 0 {
         Err(status)
@@ -507,6 +510,7 @@ pub unsafe fn audio_unit_initialize(unit_ptr: AudioUnit) -> Result<(), i32> {
 /// # Safety
 /// `unit_ptr` must be a valid `AudioUnit`.
 pub unsafe fn audio_unit_uninitialize(unit_ptr: AudioUnit) -> Result<(), i32> {
+    let _lifecycle = crate::lifecycle::lock();
     let status = AudioUnitUninitialize(unit_ptr);
     if status != 0 {
         Err(status)

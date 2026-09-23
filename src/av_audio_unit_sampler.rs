@@ -34,7 +34,8 @@ pub struct AvAudioUnitSampler {
 crate::handle::handle_type!(
     AvAudioUnitSampler,
     field = ptr,
-    release = ffi::au_av_sampler_release
+    release = ffi::au_av_sampler_release,
+    lifecycle
 );
 
 impl AvAudioUnitSampler {
@@ -94,15 +95,18 @@ impl AvAudioUnitSampler {
     ) -> Result<(), AuError> {
         let path = cstring_from_path(path)?;
         let mut error_ptr = core::ptr::null_mut();
-        let status = unsafe {
-            ffi::au_av_sampler_load_sound_bank_instrument(
-                self.ptr,
-                path.as_ptr(),
-                program,
-                bank_msb,
-                bank_lsb,
-                &raw mut error_ptr,
-            )
+        let status = {
+            let _lifecycle = crate::lifecycle::lock();
+            unsafe {
+                ffi::au_av_sampler_load_sound_bank_instrument(
+                    self.ptr,
+                    path.as_ptr(),
+                    program,
+                    bank_msb,
+                    bank_lsb,
+                    &raw mut error_ptr,
+                )
+            }
         };
         status_result(status, error_ptr)
     }
@@ -111,8 +115,11 @@ impl AvAudioUnitSampler {
     pub fn load_instrument<P: AsRef<Path>>(&self, path: P) -> Result<(), AuError> {
         let path = cstring_from_path(path)?;
         let mut error_ptr = core::ptr::null_mut();
-        let status = unsafe {
-            ffi::au_av_sampler_load_instrument(self.ptr, path.as_ptr(), &raw mut error_ptr)
+        let status = {
+            let _lifecycle = crate::lifecycle::lock();
+            unsafe {
+                ffi::au_av_sampler_load_instrument(self.ptr, path.as_ptr(), &raw mut error_ptr)
+            }
         };
         status_result(status, error_ptr)
     }

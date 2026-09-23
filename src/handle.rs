@@ -22,6 +22,8 @@
 ///   `handle_type!(Ty, field = ptr, release = path::release);`
 /// - `Send` + `Sync` + `Drop`:
 ///   `handle_type!(Ty, field = ptr, release = path::release, sync);`
+/// - `Send` + `Drop` serialized with other audio unit lifecycle calls:
+///   `handle_type!(Ty, field = ptr, release = path::release, lifecycle);`
 macro_rules! handle_type {
     ($ty:ty, field = $field:ident, release = $release:path $(,)?) => {
         unsafe impl Send for $ty {}
@@ -29,6 +31,19 @@ macro_rules! handle_type {
         impl Drop for $ty {
             fn drop(&mut self) {
                 if !self.$field.is_null() {
+                    unsafe { $release(self.$field) };
+                }
+            }
+        }
+    };
+
+    ($ty:ty, field = $field:ident, release = $release:path, lifecycle $(,)?) => {
+        unsafe impl Send for $ty {}
+
+        impl Drop for $ty {
+            fn drop(&mut self) {
+                if !self.$field.is_null() {
+                    let _lifecycle = $crate::lifecycle::lock();
                     unsafe { $release(self.$field) };
                 }
             }

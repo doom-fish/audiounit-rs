@@ -32,7 +32,8 @@ pub struct AvAudioUnitDelay {
 crate::handle::handle_type!(
     AvAudioUnitDelay,
     field = ptr,
-    release = ffi::au_av_delay_release
+    release = ffi::au_av_delay_release,
+    lifecycle
 );
 
 impl AvAudioUnitDelay {

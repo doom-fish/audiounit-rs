@@ -26,7 +26,8 @@ pub struct AvAudioUnitGenerator {
 crate::handle::handle_type!(
     AvAudioUnitGenerator,
     field = ptr,
-    release = ffi::au_av_generator_release
+    release = ffi::au_av_generator_release,
+    lifecycle
 );
 
 impl AvAudioUnitGenerator {

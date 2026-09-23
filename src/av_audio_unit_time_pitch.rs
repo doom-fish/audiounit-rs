@@ -28,7 +28,8 @@ pub struct AvAudioUnitTimePitch {
 crate::handle::handle_type!(
     AvAudioUnitTimePitch,
     field = ptr,
-    release = ffi::au_av_time_pitch_release
+    release = ffi::au_av_time_pitch_release,
+    lifecycle
 );
 
 impl AvAudioUnitTimePitch {

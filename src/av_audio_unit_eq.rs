@@ -172,7 +172,12 @@ pub type AvAudioUnitEQ = AvAudioUnitEq;
 /// Alias preserving Apple's acronym casing.
 pub type AvAudioUnitEQFilterType = AvAudioUnitEqFilterType;
 
-crate::handle::handle_type!(AvAudioUnitEq, field = ptr, release = ffi::au_av_eq_release);
+crate::handle::handle_type!(
+    AvAudioUnitEq,
+    field = ptr,
+    release = ffi::au_av_eq_release,
+    lifecycle
+);
 
 impl AvAudioUnitEq {
     /// Create an EQ with the requested number of bands.

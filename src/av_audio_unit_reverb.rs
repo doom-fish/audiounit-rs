@@ -46,7 +46,8 @@ pub struct AvAudioUnitReverb {
 crate::handle::handle_type!(
     AvAudioUnitReverb,
     field = ptr,
-    release = ffi::au_av_reverb_release
+    release = ffi::au_av_reverb_release,
+    lifecycle
 );
 
 impl AvAudioUnitReverb {

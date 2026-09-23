@@ -26,7 +26,8 @@ pub struct AvAudioUnitTimeEffect {
 crate::handle::handle_type!(
     AvAudioUnitTimeEffect,
     field = ptr,
-    release = ffi::au_av_time_effect_release
+    release = ffi::au_av_time_effect_release,
+    lifecycle
 );
 
 impl AvAudioUnitTimeEffect {

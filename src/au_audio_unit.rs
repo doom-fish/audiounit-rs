@@ -263,7 +263,8 @@ pub struct AuAudioUnit {
 crate::handle::handle_type!(
     AuAudioUnit,
     field = ptr,
-    release = ffi::au_auaudiounit_release
+    release = ffi::au_auaudiounit_release,
+    lifecycle
 );
 
 impl AuAudioUnit {
@@ -319,13 +320,16 @@ impl AuAudioUnit {
     /// Allocate render resources.
     pub fn allocate_render_resources(&self) -> Result<(), AuError> {
         let mut error_ptr = core::ptr::null_mut();
-        let status =
-            unsafe { ffi::au_auaudiounit_allocate_render_resources(self.ptr, &raw mut error_ptr) };
+        let status = {
+            let _lifecycle = crate::lifecycle::lock();
+            unsafe { ffi::au_auaudiounit_allocate_render_resources(self.ptr, &raw mut error_ptr) }
+        };
         status_result(status, error_ptr)
     }
 
     /// Deallocate render resources.
     pub fn deallocate_render_resources(&self) {
+        let _lifecycle = crate::lifecycle::lock();
         unsafe { ffi::au_auaudiounit_deallocate_render_resources(self.ptr) };
     }
 

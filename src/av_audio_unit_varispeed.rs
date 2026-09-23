@@ -26,7 +26,8 @@ pub struct AvAudioUnitVarispeed {
 crate::handle::handle_type!(
     AvAudioUnitVarispeed,
     field = ptr,
-    release = ffi::au_av_varispeed_release
+    release = ffi::au_av_varispeed_release,
+    lifecycle
 );
 
 impl AvAudioUnitVarispeed {

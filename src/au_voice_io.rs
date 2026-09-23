@@ -51,7 +51,12 @@ pub struct AuVoiceIo {
 /// Alias preserving Apple's acronym casing.
 pub type AuVoiceIO = AuVoiceIo;
 
-crate::handle::handle_type!(AuVoiceIo, field = ptr, release = ffi::au_voice_io_release);
+crate::handle::handle_type!(
+    AuVoiceIo,
+    field = ptr,
+    release = ffi::au_voice_io_release,
+    lifecycle
+);
 
 impl AuVoiceIo {
     /// Create a new voice-processing I/O unit.

@@ -26,7 +26,8 @@ pub struct AvAudioUnitEffect {
 crate::handle::handle_type!(
     AvAudioUnitEffect,
     field = ptr,
-    release = ffi::au_av_effect_release
+    release = ffi::au_av_effect_release,
+    lifecycle
 );
 
 impl AvAudioUnitEffect {
