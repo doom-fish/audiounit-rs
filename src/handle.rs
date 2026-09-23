@@ -9,9 +9,8 @@
 //! hand-written versions:
 //! - `unsafe impl Send` asserts the handle is safe to move across threads
 //!   (the Swift objects are internally synchronized).
-//! - `Drop` calls the supplied `release` FFI fn unconditionally, matching the
-//!   original `unsafe { ffi::..._release(self.ptr) }` bodies (no null guard,
-//!   since the Swift bridge tolerates a null pointer).
+//! - `Drop` calls the supplied `release` FFI fn only for a non-null pointer,
+//!   because the Swift `*_release` functions take non-optional pointers.
 //!
 //! Types whose `Drop` carries extra logic, or that need additional marker
 //! traits beyond the variants below, are intentionally left hand-written.
@@ -29,7 +28,9 @@ macro_rules! handle_type {
 
         impl Drop for $ty {
             fn drop(&mut self) {
-                unsafe { $release(self.$field) };
+                if !self.$field.is_null() {
+                    unsafe { $release(self.$field) };
+                }
             }
         }
     };

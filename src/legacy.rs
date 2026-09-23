@@ -344,7 +344,7 @@ extern "C" {
         in_scope: u32,
         in_element: u32,
         out_data_size: *mut u32,
-        out_writable: *mut bool,
+        out_writable: *mut u8,
     ) -> i32;
     fn AudioUnitGetProperty(
         in_unit: AudioUnit,
@@ -526,7 +526,7 @@ pub unsafe fn audio_unit_get_property_info(
     element: u32,
 ) -> Result<(u32, bool), i32> {
     let mut size: u32 = 0;
-    let mut writable: bool = false;
+    let mut writable: u8 = 0;
     let status = AudioUnitGetPropertyInfo(
         unit_ptr,
         property_id,
@@ -538,7 +538,7 @@ pub unsafe fn audio_unit_get_property_info(
     if status != 0 {
         Err(status)
     } else {
-        Ok((size, writable))
+        Ok((size, writable != 0))
     }
 }
 
