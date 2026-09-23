@@ -1,5 +1,6 @@
 use core::ffi::c_char;
 use std::ffi::CString;
+use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 
 use serde::de::DeserializeOwned;
@@ -36,7 +37,7 @@ pub fn property_status_result(status: i32) -> Result<(), AuError> {
 }
 
 pub fn cstring_from_path<P: AsRef<Path>>(path: P) -> Result<CString, AuError> {
-    CString::new(path.as_ref().to_string_lossy().into_owned())
+    CString::new(path.as_ref().as_os_str().as_bytes())
         .map_err(|error| AuError::InvalidArgument(error.to_string()))
 }
 

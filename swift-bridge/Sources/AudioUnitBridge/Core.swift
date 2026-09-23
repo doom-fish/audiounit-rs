@@ -33,6 +33,13 @@ func releaseBox<T>(_ ptr: UnsafeMutableRawPointer, as _: T.Type) {
     Unmanaged<Box<T>>.fromOpaque(ptr).release()
 }
 
+func fileURL(from path: UnsafePointer<CChar>) -> URL? {
+    let length = strlen(path)
+    return path.withMemoryRebound(to: UInt8.self, capacity: length + 1) { bytes in
+        CFURLCreateFromFileSystemRepresentation(kCFAllocatorDefault, bytes, length, false) as URL?
+    }
+}
+
 @inline(__always)
 func ffiString(_ string: String?) -> UnsafeMutablePointer<CChar>? {
     guard let string else { return nil }

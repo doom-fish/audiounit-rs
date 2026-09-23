@@ -75,7 +75,10 @@ public func au_avunit_load_audio_unit_preset(
         return AU_INVALID_ARGUMENT
     }
 
-    let url = URL(fileURLWithPath: String(cString: path))
+    guard let url = fileURL(from: path) else {
+        setError(outErrorMsg, "path is not a valid file system path")
+        return AU_INVALID_ARGUMENT
+    }
     do {
         try borrowBox(ptr, as: AVAudioUnit.self).loadPreset(at: url)
         return AU_OK

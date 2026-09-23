@@ -107,3 +107,43 @@ fn av_audio_unit_distortion_reverb_and_time_effects_smoke() -> Result<(), Box<dy
     assert!((varispeed.info()?.rate - 1.5).abs() < 0.01);
     Ok(())
 }
+
+#[test]
+fn preset_paths_are_passed_byte_exact() -> Result<(), Box<dyn std::error::Error>> {
+    use std::ffi::OsStr;
+    use std::os::unix::ffi::OsStrExt;
+
+    let source = AvAudioUnitDelay::new()?;
+    let written = support::write_full_state_preset(&source.as_av_audio_unit(), "exact-path")?;
+    let suffix = format!("{}.aupreset", std::process::id());
+    let lossy = written.with_file_name(format!("exact-path-\u{FFFD}-{suffix}"));
+    std::fs::rename(&written, &lossy)?;
+    let raw_name = [b"exact-path-\xff-".as_slice(), suffix.as_bytes()].concat();
+    let raw = lossy.with_file_name(OsStr::from_bytes(&raw_name));
+
+    let target = AvAudioUnitDelay::new()?;
+    let loaded = target.as_av_audio_unit().load_audio_unit_preset(&raw);
+    let _ = std::fs::remove_file(&lossy);
+    assert!(
+        loaded.is_err(),
+        "a lossy path conversion loaded a different file"
+    );
+    Ok(())
+}
+
+#[test]
+fn relative_preset_paths_resolve_against_the_working_directory(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let source = AvAudioUnitDelay::new()?;
+    let written = support::write_full_state_preset(&source.as_av_audio_unit(), "relative-path")?;
+    let relative = written
+        .strip_prefix(std::env::current_dir()?)?
+        .to_path_buf();
+    assert!(relative.is_relative());
+
+    let target = AvAudioUnitDelay::new()?;
+    let loaded = target.as_av_audio_unit().load_audio_unit_preset(&relative);
+    let _ = std::fs::remove_file(&written);
+    loaded?;
+    Ok(())
+}

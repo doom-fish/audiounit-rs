@@ -76,7 +76,10 @@ public func au_av_sampler_load_sound_bank_instrument(
         return AU_INVALID_ARGUMENT
     }
 
-    let url = URL(fileURLWithPath: String(cString: path))
+    guard let url = fileURL(from: path) else {
+        setError(outErrorMsg, "path is not a valid file system path")
+        return AU_INVALID_ARGUMENT
+    }
     do {
         try borrowBox(ptr, as: AVAudioUnitSampler.self).loadSoundBankInstrument(
             at: url,
@@ -103,7 +106,10 @@ public func au_av_sampler_load_instrument(
         return AU_INVALID_ARGUMENT
     }
 
-    let url = URL(fileURLWithPath: String(cString: path))
+    guard let url = fileURL(from: path) else {
+        setError(outErrorMsg, "path is not a valid file system path")
+        return AU_INVALID_ARGUMENT
+    }
     do {
         try borrowBox(ptr, as: AVAudioUnitSampler.self).loadInstrument(at: url)
         return AU_OK
