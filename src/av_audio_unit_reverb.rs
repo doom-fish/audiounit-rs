@@ -54,7 +54,7 @@ impl AvAudioUnitReverb {
     pub fn new() -> Result<Self, AuError> {
         let mut unit_ptr = core::ptr::null_mut();
         let mut error_ptr = core::ptr::null_mut();
-        let status = unsafe { ffi::au_av_reverb_create(&mut unit_ptr, &mut error_ptr) };
+        let status = unsafe { ffi::au_av_reverb_create(&raw mut unit_ptr, &raw mut error_ptr) };
         status_result(status, error_ptr)?;
         Ok(Self { ptr: unit_ptr })
     }

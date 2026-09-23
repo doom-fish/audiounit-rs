@@ -60,8 +60,8 @@ impl AvAudioUnit {
                 description.component_flags,
                 description.component_flags_mask,
                 options as u32,
-                &mut unit_ptr,
-                &mut error_ptr,
+                &raw mut unit_ptr,
+                &raw mut error_ptr,
             )
         };
         status_result(status, error_ptr)?;
@@ -79,7 +79,7 @@ impl AvAudioUnit {
         let path = cstring_from_path(path)?;
         let mut error_ptr = core::ptr::null_mut();
         let status = unsafe {
-            ffi::au_avunit_load_audio_unit_preset(self.ptr, path.as_ptr(), &mut error_ptr)
+            ffi::au_avunit_load_audio_unit_preset(self.ptr, path.as_ptr(), &raw mut error_ptr)
         };
         status_result(status, error_ptr)
     }

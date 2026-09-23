@@ -64,7 +64,12 @@ impl AuAudioUnitBus {
     pub fn set_standard_format(&self, sample_rate: f64, channel_count: u32) -> Result<(), AuError> {
         let mut error_ptr = core::ptr::null_mut();
         let status = unsafe {
-            ffi::au_bus_set_standard_format(self.ptr, sample_rate, channel_count, &mut error_ptr)
+            ffi::au_bus_set_standard_format(
+                self.ptr,
+                sample_rate,
+                channel_count,
+                &raw mut error_ptr,
+            )
         };
         status_result(status, error_ptr)
     }

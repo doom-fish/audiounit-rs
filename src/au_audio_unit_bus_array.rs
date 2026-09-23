@@ -65,7 +65,8 @@ impl AuAudioUnitBusArray {
     /// Change the number of busses in the array.
     pub fn set_bus_count(&self, count: usize) -> Result<(), AuError> {
         let mut error_ptr = core::ptr::null_mut();
-        let status = unsafe { ffi::au_bus_array_set_bus_count(self.ptr, count, &mut error_ptr) };
+        let status =
+            unsafe { ffi::au_bus_array_set_bus_count(self.ptr, count, &raw mut error_ptr) };
         status_result(status, error_ptr)
     }
 }

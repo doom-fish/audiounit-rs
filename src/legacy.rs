@@ -440,7 +440,7 @@ pub unsafe fn audio_component_instance_new(
     component_ptr: AudioComponent,
 ) -> Result<AudioComponentInstance, i32> {
     let mut instance: AudioComponentInstance = core::ptr::null_mut();
-    let status = AudioComponentInstanceNew(component_ptr, &mut instance);
+    let status = AudioComponentInstanceNew(component_ptr, &raw mut instance);
     if status != 0 {
         Err(status)
     } else {
@@ -532,8 +532,8 @@ pub unsafe fn audio_unit_get_property_info(
         property_id,
         scope,
         element,
-        &mut size,
-        &mut writable,
+        &raw mut size,
+        &raw mut writable,
     );
     if status != 0 {
         Err(status)
@@ -600,7 +600,7 @@ pub unsafe fn audio_unit_get_parameter(
     element: u32,
 ) -> Result<f32, i32> {
     let mut value: f32 = 0.0;
-    let status = AudioUnitGetParameter(unit_ptr, parameter_id, scope, element, &mut value);
+    let status = AudioUnitGetParameter(unit_ptr, parameter_id, scope, element, &raw mut value);
     if status != 0 {
         Err(status)
     } else {
@@ -795,7 +795,7 @@ pub unsafe fn music_device_start_note(
         unit_ptr,
         instrument,
         group_id,
-        &mut note_id,
+        &raw mut note_id,
         offset_sample_frame,
         params,
     );

@@ -41,8 +41,8 @@ impl AvAudioUnitGenerator {
                 description.component_manufacturer,
                 description.component_flags,
                 description.component_flags_mask,
-                &mut unit_ptr,
-                &mut error_ptr,
+                &raw mut unit_ptr,
+                &raw mut error_ptr,
             )
         };
         status_result(status, error_ptr)?;

@@ -246,8 +246,8 @@ impl AuMessageChannel {
             ffi::au_message_channel_call_audio_unit_json(
                 self.ptr,
                 message.as_ptr(),
-                &mut json_ptr,
-                &mut error_ptr,
+                &raw mut json_ptr,
+                &raw mut error_ptr,
             )
         };
         status_result(status, error_ptr)?;
@@ -297,8 +297,8 @@ impl AuAudioUnit {
                 description.component_flags,
                 description.component_flags_mask,
                 options as u32,
-                &mut unit_ptr,
-                &mut error_ptr,
+                &raw mut unit_ptr,
+                &raw mut error_ptr,
             )
         };
         status_result(status, error_ptr)?;
@@ -320,7 +320,7 @@ impl AuAudioUnit {
     pub fn allocate_render_resources(&self) -> Result<(), AuError> {
         let mut error_ptr = core::ptr::null_mut();
         let status =
-            unsafe { ffi::au_auaudiounit_allocate_render_resources(self.ptr, &mut error_ptr) };
+            unsafe { ffi::au_auaudiounit_allocate_render_resources(self.ptr, &raw mut error_ptr) };
         status_result(status, error_ptr)
     }
 
@@ -409,7 +409,11 @@ impl AuAudioUnit {
         let mut token = 0isize;
         let mut error_ptr = core::ptr::null_mut();
         let status = unsafe {
-            ffi::au_auaudiounit_add_render_observer_capture(self.ptr, &mut token, &mut error_ptr)
+            ffi::au_auaudiounit_add_render_observer_capture(
+                self.ptr,
+                &raw mut token,
+                &raw mut error_ptr,
+            )
         };
         status_result(status, error_ptr)?;
         Ok(AuRenderObserverToken { raw: token })
@@ -545,7 +549,7 @@ impl AuAudioUnit {
                 value
                     .as_ref()
                     .map_or(core::ptr::null(), |value| value.as_ptr()),
-                &mut error_ptr,
+                &raw mut error_ptr,
             )
         };
         status_result(status, error_ptr)
@@ -567,7 +571,7 @@ impl AuAudioUnit {
                 value
                     .as_ref()
                     .map_or(core::ptr::null(), |value| value.as_ptr()),
-                &mut error_ptr,
+                &raw mut error_ptr,
             )
         };
         status_result(status, error_ptr)
@@ -592,8 +596,8 @@ impl AuAudioUnit {
                 self.ptr,
                 cable,
                 channel,
-                &mut json_ptr,
-                &mut error_ptr,
+                &raw mut json_ptr,
+                &raw mut error_ptr,
             )
         };
         status_result(status, error_ptr)?;
@@ -626,7 +630,7 @@ impl AuAudioUnit {
                     .map_or(core::ptr::null(), |value| value.as_ptr()),
                 cable,
                 channel,
-                &mut error_ptr,
+                &raw mut error_ptr,
             )
         };
         status_result(status, error_ptr)
@@ -654,7 +658,7 @@ impl AuAudioUnit {
                     .map_or(core::ptr::null(), |value| value.as_ptr()),
                 cable,
                 channel,
-                &mut error_ptr,
+                &raw mut error_ptr,
             )
         };
         status_result(status, error_ptr)
@@ -670,8 +674,8 @@ impl AuAudioUnit {
             ffi::au_auaudiounit_message_channel(
                 self.ptr,
                 name.as_ptr(),
-                &mut channel_ptr,
-                &mut error_ptr,
+                &raw mut channel_ptr,
+                &raw mut error_ptr,
             )
         };
         status_result(status, error_ptr)?;
@@ -696,14 +700,14 @@ impl AuAudioUnit {
     pub fn set_device_id(&self, device_id: u32) -> Result<(), AuError> {
         let mut error_ptr = core::ptr::null_mut();
         let status =
-            unsafe { ffi::au_auaudiounit_set_device_id(self.ptr, device_id, &mut error_ptr) };
+            unsafe { ffi::au_auaudiounit_set_device_id(self.ptr, device_id, &raw mut error_ptr) };
         status_result(status, error_ptr)
     }
 
     /// Start the audio hardware for an input/output unit.
     pub fn start_hardware(&self) -> Result<(), AuError> {
         let mut error_ptr = core::ptr::null_mut();
-        let status = unsafe { ffi::au_auaudiounit_start_hardware(self.ptr, &mut error_ptr) };
+        let status = unsafe { ffi::au_auaudiounit_start_hardware(self.ptr, &raw mut error_ptr) };
         status_result(status, error_ptr)
     }
 

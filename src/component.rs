@@ -199,7 +199,12 @@ impl AudioUnitComponent {
         let mut flm: u32 = 0;
         unsafe {
             ffi::au_avc_component_audio_component_description(
-                self.ptr, &mut t, &mut st, &mut mfr, &mut fl, &mut flm,
+                self.ptr,
+                &raw mut t,
+                &raw mut st,
+                &raw mut mfr,
+                &raw mut fl,
+                &raw mut flm,
             );
         };
         AudioComponentDescription {
@@ -230,7 +235,11 @@ impl AudioUnitComponent {
         let tags = json_cstring(&tags)?;
         let mut error_ptr = core::ptr::null_mut();
         let status = unsafe {
-            ffi::au_avc_component_set_user_tag_names_json(self.ptr, tags.as_ptr(), &mut error_ptr)
+            ffi::au_avc_component_set_user_tag_names_json(
+                self.ptr,
+                tags.as_ptr(),
+                &raw mut error_ptr,
+            )
         };
         status_result(status, error_ptr)
     }
@@ -292,7 +301,7 @@ impl ComponentManager {
                 d.component_manufacturer,
                 d.component_flags,
                 d.component_flags_mask,
-                &mut count,
+                &raw mut count,
             )
         };
         components_from_buffer(
@@ -314,9 +323,9 @@ impl ComponentManager {
         let status = unsafe {
             ffi::au_avc_manager_components_matching_predicate(
                 predicate.as_ptr(),
-                &mut buf,
-                &mut count,
-                &mut error_ptr,
+                &raw mut buf,
+                &raw mut count,
+                &raw mut error_ptr,
             )
         };
         status_result(status, error_ptr)?;
@@ -346,9 +355,9 @@ impl ComponentManager {
             ffi::au_avc_manager_components_passing_test(
                 Some(component_test_trampoline::<F>),
                 std::ptr::addr_of_mut!(context).cast(),
-                &mut buf,
-                &mut count,
-                &mut error_ptr,
+                &raw mut buf,
+                &raw mut count,
+                &raw mut error_ptr,
             )
         };
         if let Some(payload) = context.panic.take() {
