@@ -33,11 +33,58 @@ func releaseBox<T>(_ ptr: UnsafeMutableRawPointer, as _: T.Type) {
     Unmanaged<Box<T>>.fromOpaque(ptr).release()
 }
 
+public typealias RustContextRelease = @convention(c) (UnsafeMutableRawPointer?) -> Void
+
 func fileURL(from path: UnsafePointer<CChar>) -> URL? {
     let length = strlen(path)
     return path.withMemoryRebound(to: UInt8.self, capacity: length + 1) { bytes in
         CFURLCreateFromFileSystemRepresentation(kCFAllocatorDefault, bytes, length, false) as URL?
     }
+}
+
+final class RustContext {
+    let pointer: UnsafeMutableRawPointer
+    private let release: RustContextRelease
+
+    init(_ pointer: UnsafeMutableRawPointer, _ release: @escaping RustContextRelease) {
+        self.pointer = pointer
+        self.release = release
+    }
+
+    deinit {
+        release(pointer)
+    }
+}
+
+func adoptRustContext(
+    _ context: UnsafeMutableRawPointer?,
+    _ release: RustContextRelease?
+) -> RustContext? {
+    guard let context, let release else {
+        return nil
+    }
+    return RustContext(context, release)
+}
+
+final class AssociatedValue<T> {
+    let value: T
+
+    init(_ value: T) {
+        self.value = value
+    }
+}
+
+func associatedValue<T>(_ object: AnyObject, _ key: UnsafeRawPointer, as _: T.Type) -> T? {
+    (objc_getAssociatedObject(object, key) as? AssociatedValue<T>)?.value
+}
+
+func setAssociatedValue<T>(_ object: AnyObject, _ key: UnsafeRawPointer, _ value: T?) {
+    objc_setAssociatedObject(
+        object,
+        key,
+        value.map { AssociatedValue($0) },
+        .OBJC_ASSOCIATION_RETAIN
+    )
 }
 
 @inline(__always)

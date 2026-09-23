@@ -33,6 +33,7 @@ pub mod av_audio_unit_sampler;
 pub mod av_audio_unit_time_effect;
 pub mod av_audio_unit_time_pitch;
 pub mod av_audio_unit_varispeed;
+pub mod capture;
 pub mod component;
 pub mod component_description;
 pub mod error;
@@ -47,8 +48,9 @@ mod util;
 pub use au_audio_unit::{
     host_transport_state_flags, AuAudioUnit, AuAudioUnitInfo, AuAudioUnitPreset,
     AuHostMusicalContext, AuHostTransportState, AuMessageChannel, AuMidiCiProfile,
-    AuMidiCiProfileId, AuMidiCiProfileState, AuMidiOutputEvent, AuMidiOutputEventListSummary,
-    AuRenderObserverEvent, AuRenderObserverToken, AU_EVENT_SAMPLE_TIME_IMMEDIATE,
+    AuMidiCiProfileId, AuMidiCiProfileState, AuMidiOutputCapture, AuMidiOutputEvent,
+    AuMidiOutputEventListCapture, AuMidiOutputEventListSummary, AuPullInput, AuRenderObserverEvent,
+    AuRenderObserverToken, AU_EVENT_SAMPLE_TIME_IMMEDIATE,
 };
 pub use au_audio_unit_bus::{AuAudioUnitBus, AuAudioUnitBusInfo, AudioFormatInfo};
 pub use au_audio_unit_bus_array::{AuAudioUnitBusArray, AuAudioUnitBusArrayInfo};
@@ -87,6 +89,7 @@ pub use av_audio_unit_sampler::{AvAudioUnitSampler, AvAudioUnitSamplerInfo};
 pub use av_audio_unit_time_effect::{AvAudioUnitTimeEffect, AvAudioUnitTimeEffectInfo};
 pub use av_audio_unit_time_pitch::{AvAudioUnitTimePitch, AvAudioUnitTimePitchInfo};
 pub use av_audio_unit_varispeed::{AvAudioUnitVarispeed, AvAudioUnitVarispeedInfo};
+pub use capture::{CAPTURE_CAPACITY_MAX, MIDI_OUTPUT_INLINE_BYTES};
 pub use component::{AudioUnitComponent, ComponentManager, ComponentPredicate};
 pub use component_description::AudioComponentDescription;
 pub use error::AuError;
@@ -95,7 +98,8 @@ pub mod prelude {
     pub use crate::au_audio_unit::{
         host_transport_state_flags, AuAudioUnit, AuAudioUnitInfo, AuAudioUnitPreset,
         AuHostMusicalContext, AuHostTransportState, AuMessageChannel, AuMidiCiProfile,
-        AuMidiCiProfileId, AuMidiCiProfileState, AuMidiOutputEvent, AuMidiOutputEventListSummary,
+        AuMidiCiProfileId, AuMidiCiProfileState, AuMidiOutputCapture, AuMidiOutputEvent,
+        AuMidiOutputEventListCapture, AuMidiOutputEventListSummary, AuPullInput,
         AuRenderObserverEvent, AuRenderObserverToken, AU_EVENT_SAMPLE_TIME_IMMEDIATE,
     };
     pub use crate::au_audio_unit_bus::{AuAudioUnitBus, AuAudioUnitBusInfo, AudioFormatInfo};
@@ -137,6 +141,7 @@ pub mod prelude {
     pub use crate::av_audio_unit_time_effect::{AvAudioUnitTimeEffect, AvAudioUnitTimeEffectInfo};
     pub use crate::av_audio_unit_time_pitch::{AvAudioUnitTimePitch, AvAudioUnitTimePitchInfo};
     pub use crate::av_audio_unit_varispeed::{AvAudioUnitVarispeed, AvAudioUnitVarispeedInfo};
+    pub use crate::capture::{CAPTURE_CAPACITY_MAX, MIDI_OUTPUT_INLINE_BYTES};
     pub use crate::component::{AudioUnitComponent, ComponentManager, ComponentPredicate};
     pub use crate::component_description::constants::*;
     pub use crate::component_description::AudioComponentDescription;

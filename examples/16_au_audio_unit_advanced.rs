@@ -30,13 +30,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("musical context: {:?}", unit.musical_context()?);
 
     let tree = unit.parameter_tree().ok_or("missing parameter tree")?;
-    let token = tree.add_parameter_observer_capture()?;
+    let token = tree.add_parameter_observer_capture(64)?;
     let parameter = support::first_parameter(&unit)?;
     let value = parameter.value();
     parameter.set_value_with_event(value, 0, AuParameterAutomationEventType::Value);
-    let events = tree.take_parameter_observer_events(token)?;
+    let events = token.take_events();
     println!("captured parameter events: {}", events.len());
-    tree.remove_parameter_observer(token);
+    drop(token);
 
     let raw_unit = unsafe {
         legacy::audio_component_instance_new(unit.component_ptr())

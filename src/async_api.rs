@@ -5,7 +5,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! audiounit = { version = "0.3", features = ["async"] }
+//! audiounit = { version = "0.4", features = ["async"] }
 //! ```
 //!
 //! These wrappers intentionally target the capture-backed, event-style surfaces
@@ -16,9 +16,10 @@
 //! - `AUAudioUnit` MIDI event-list capture
 //! - `AUParameterTree` observer / recording / automation capture
 //!
-//! Internally each stream owns a retained framework handle plus a lightweight
-//! polling thread that drains the existing capture buffers into a bounded,
-//! executor-agnostic async stream.
+//! Internally each stream owns a capture token plus a lightweight polling
+//! thread that drains the capture's lock-free ring into a bounded,
+//! executor-agnostic async stream, so the render thread never runs executor
+//! code.
 //!
 //! # Example
 //!
@@ -130,22 +131,15 @@ fn drive_capture_loop<T, F>(
     mut drain: F,
 ) where
     T: Send + 'static,
-    F: FnMut() -> Result<Vec<T>, AuError>,
+    F: FnMut() -> Vec<T>,
 {
     while !stop.load(Ordering::Acquire) {
-        match drain() {
-            Ok(events) => {
-                if events.is_empty() {
-                    thread::park_timeout(poll_interval);
-                } else {
-                    for event in events {
-                        sender.push(Ok(event));
-                    }
-                }
-            }
-            Err(error) => {
-                sender.push(Err(error));
-                break;
+        let events = drain();
+        if events.is_empty() {
+            thread::park_timeout(poll_interval);
+        } else {
+            for event in events {
+                sender.push(Ok(event));
             }
         }
     }
@@ -195,13 +189,9 @@ impl AuRenderObserverStream {
             poll_interval,
         )?;
 
-        let unit = unit.retained()?;
-        let token = unit.add_render_observer_capture()?;
+        let token = unit.add_render_observer_capture(capacity)?;
         let (inner, worker) = spawn_capture_stream(capacity, move |sender, stop| {
-            drive_capture_loop(&sender, &stop, poll_interval, || {
-                unit.take_render_observer_events(token)
-            });
-            unit.remove_render_observer(token);
+            drive_capture_loop(&sender, &stop, poll_interval, || token.take_events());
         });
 
         Ok(Self {
@@ -235,13 +225,9 @@ impl AuMidiOutputEventStream {
             poll_interval,
         )?;
 
-        let unit = unit.retained()?;
-        unit.set_midi_output_event_capture_enabled(true);
+        let capture = unit.add_midi_output_capture(capacity)?;
         let (inner, worker) = spawn_capture_stream(capacity, move |sender, stop| {
-            drive_capture_loop(&sender, &stop, poll_interval, || {
-                unit.take_captured_midi_output_events()
-            });
-            unit.set_midi_output_event_capture_enabled(false);
+            drive_capture_loop(&sender, &stop, poll_interval, || capture.take_events());
         });
 
         Ok(Self {
@@ -275,13 +261,9 @@ impl AuMidiOutputEventListStream {
             poll_interval,
         )?;
 
-        let unit = unit.retained()?;
-        unit.set_midi_output_event_list_capture_enabled(true);
+        let capture = unit.add_midi_output_event_list_capture(capacity)?;
         let (inner, worker) = spawn_capture_stream(capacity, move |sender, stop| {
-            drive_capture_loop(&sender, &stop, poll_interval, || {
-                unit.take_captured_midi_output_event_lists()
-            });
-            unit.set_midi_output_event_list_capture_enabled(false);
+            drive_capture_loop(&sender, &stop, poll_interval, || capture.take_events());
         });
 
         Ok(Self {
@@ -315,13 +297,9 @@ impl AuParameterObserverStream {
             poll_interval,
         )?;
 
-        let tree = tree.retained()?;
-        let token = tree.add_parameter_observer_capture()?;
+        let token = tree.add_parameter_observer_capture(capacity)?;
         let (inner, worker) = spawn_capture_stream(capacity, move |sender, stop| {
-            drive_capture_loop(&sender, &stop, poll_interval, || {
-                tree.take_parameter_observer_events(token)
-            });
-            tree.remove_parameter_observer(token);
+            drive_capture_loop(&sender, &stop, poll_interval, || token.take_events());
         });
 
         Ok(Self {
@@ -355,13 +333,9 @@ impl AuParameterRecordingStream {
             poll_interval,
         )?;
 
-        let tree = tree.retained()?;
-        let token = tree.add_parameter_recording_observer_capture()?;
+        let token = tree.add_parameter_recording_observer_capture(capacity)?;
         let (inner, worker) = spawn_capture_stream(capacity, move |sender, stop| {
-            drive_capture_loop(&sender, &stop, poll_interval, || {
-                tree.take_parameter_recording_events(token)
-            });
-            tree.remove_parameter_observer(token);
+            drive_capture_loop(&sender, &stop, poll_interval, || token.take_events());
         });
 
         Ok(Self {
@@ -395,13 +369,9 @@ impl AuParameterAutomationStream {
             poll_interval,
         )?;
 
-        let tree = tree.retained()?;
-        let token = tree.add_parameter_automation_observer_capture()?;
+        let token = tree.add_parameter_automation_observer_capture(capacity)?;
         let (inner, worker) = spawn_capture_stream(capacity, move |sender, stop| {
-            drive_capture_loop(&sender, &stop, poll_interval, || {
-                tree.take_parameter_automation_events(token)
-            });
-            tree.remove_parameter_observer(token);
+            drive_capture_loop(&sender, &stop, poll_interval, || token.take_events());
         });
 
         Ok(Self {

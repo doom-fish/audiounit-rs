@@ -92,7 +92,7 @@ pub type AURenderCallback = unsafe extern "C" fn(
 
 /// Minimal `AudioTimeStamp` layout.
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct AudioTimeStamp {
     pub sample_time: f64,
     pub host_time: u64,
@@ -101,6 +101,22 @@ pub struct AudioTimeStamp {
     _smpte_time: [u8; 24],
     pub flags: u32,
     pub reserved: u32,
+}
+
+impl AudioTimeStamp {
+    pub const SAMPLE_TIME_VALID: u32 = 1;
+
+    pub const fn with_sample_time(sample_time: f64) -> Self {
+        Self {
+            sample_time,
+            host_time: 0,
+            rate_scalar: 0.0,
+            word_clock_time: 0,
+            _smpte_time: [0; 24],
+            flags: Self::SAMPLE_TIME_VALID,
+            reserved: 0,
+        }
+    }
 }
 
 /// `AudioBuffer` — one channel's worth of data.

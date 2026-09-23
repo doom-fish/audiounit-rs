@@ -11,6 +11,10 @@ use crate::au_audio_unit_bus_array::AuAudioUnitBusArray;
 use crate::au_audio_unit_v2_bridge::AuAudioUnitV2Bridge;
 use crate::au_parameter_tree::AuParameterTree;
 use crate::av_audio_unit::{instantiation_timeout_seconds, InstantiationOptions};
+use crate::capture::{
+    push_midi_output, push_midi_output_event_list, push_render_observer, Capture, CaptureContext,
+    MidiOutputRecord,
+};
 use crate::component_description::AudioComponentDescription;
 use crate::error::AuError;
 use crate::ffi;
@@ -127,10 +131,140 @@ pub struct AuAudioUnitInfo {
 }
 
 /// Opaque token for a render observer capture registered on an `AUAudioUnit`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AuRenderObserverToken {
+    unit: AuAudioUnit,
     raw: isize,
+    capture: Capture<AuRenderObserverEvent>,
 }
+
+impl AuRenderObserverToken {
+    pub fn take_events(&self) -> Vec<AuRenderObserverEvent> {
+        self.capture.drain()
+    }
+
+    pub fn dropped_events(&self) -> u64 {
+        self.capture.dropped()
+    }
+}
+
+impl Drop for AuRenderObserverToken {
+    fn drop(&mut self) {
+        self.capture.close();
+        unsafe { ffi::au_auaudiounit_remove_render_observer(self.unit.ptr, self.raw) };
+    }
+}
+
+impl std::fmt::Debug for AuRenderObserverToken {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AuRenderObserverToken")
+            .field("raw", &self.raw)
+            .field("capacity", &self.capture.capacity())
+            .field("dropped_events", &self.dropped_events())
+            .finish_non_exhaustive()
+    }
+}
+
+pub struct AuMidiOutputCapture {
+    unit: AuAudioUnit,
+    id: isize,
+    capture: Capture<MidiOutputRecord>,
+}
+
+impl AuMidiOutputCapture {
+    pub fn take_events(&self) -> Vec<AuMidiOutputEvent> {
+        self.capture.drain().into_iter().map(Into::into).collect()
+    }
+
+    pub fn dropped_events(&self) -> u64 {
+        self.capture.dropped()
+    }
+}
+
+impl Drop for AuMidiOutputCapture {
+    fn drop(&mut self) {
+        self.capture.close();
+        unsafe { ffi::au_auaudiounit_remove_midi_output_capture(self.unit.ptr, self.id) };
+    }
+}
+
+impl std::fmt::Debug for AuMidiOutputCapture {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AuMidiOutputCapture")
+            .field("id", &self.id)
+            .field("capacity", &self.capture.capacity())
+            .field("dropped_events", &self.dropped_events())
+            .finish_non_exhaustive()
+    }
+}
+
+pub struct AuMidiOutputEventListCapture {
+    unit: AuAudioUnit,
+    id: isize,
+    capture: Capture<AuMidiOutputEventListSummary>,
+}
+
+impl AuMidiOutputEventListCapture {
+    pub fn take_events(&self) -> Vec<AuMidiOutputEventListSummary> {
+        self.capture.drain()
+    }
+
+    pub fn dropped_events(&self) -> u64 {
+        self.capture.dropped()
+    }
+}
+
+impl Drop for AuMidiOutputEventListCapture {
+    fn drop(&mut self) {
+        self.capture.close();
+        unsafe {
+            ffi::au_auaudiounit_remove_midi_output_event_list_capture(self.unit.ptr, self.id);
+        };
+    }
+}
+
+impl std::fmt::Debug for AuMidiOutputEventListCapture {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AuMidiOutputEventListCapture")
+            .field("id", &self.id)
+            .field("capacity", &self.capture.capacity())
+            .field("dropped_events", &self.dropped_events())
+            .finish_non_exhaustive()
+    }
+}
+
+pub type AuPullInput<'a> =
+    dyn FnMut(&mut u32, &AudioTimeStamp, u32, isize, *mut AudioBufferList) -> i32 + 'a;
+
+unsafe extern "C" fn pull_input_trampoline(
+    context: *mut c_void,
+    action_flags: *mut u32,
+    time_stamp: *const c_void,
+    frame_count: u32,
+    input_bus_number: isize,
+    input_data: *mut c_void,
+) -> i32 {
+    doom_fish_utils::panic_safe::catch_user_panic_result("audiounit::pull_input", || {
+        let (Some(pull_input), Some(action_flags), Some(time_stamp)) = (unsafe {
+            (
+                context.cast::<&mut AuPullInput<'_>>().as_mut(),
+                action_flags.as_mut(),
+                time_stamp.cast::<AudioTimeStamp>().as_ref(),
+            )
+        }) else {
+            return PULL_INPUT_PARAM_ERROR;
+        };
+        pull_input(
+            action_flags,
+            time_stamp,
+            frame_count,
+            input_bus_number,
+            input_data.cast(),
+        )
+    })
+    .unwrap_or(PULL_INPUT_PARAM_ERROR)
+}
+
+const PULL_INPUT_PARAM_ERROR: i32 = -50;
 
 /// One captured render-observer callback.
 #[derive(Debug, Clone, Deserialize, PartialEq)]
@@ -154,6 +288,8 @@ pub struct AuMidiOutputEvent {
     pub event_sample_time: i64,
     pub cable: u8,
     pub bytes: Vec<u8>,
+    #[serde(default)]
+    pub truncated: bool,
 }
 
 /// Summary of one captured `MIDIOutputEventListBlock` callback.
@@ -387,7 +523,7 @@ impl AuAudioUnit {
         take_json(ptr)
     }
 
-    /// Invoke the unit's `renderBlock` without a pull-input callback.
+    /// Invoke the unit's `renderBlock`, optionally with a pull-input callback.
     ///
     /// # Safety
     /// `action_flags`, `time_stamp`, and `output_data` must point to valid Core Audio layouts.
@@ -399,15 +535,29 @@ impl AuAudioUnit {
         frame_count: u32,
         output_bus_number: isize,
         output_data: *mut AudioBufferList,
+        pull_input: Option<&mut AuPullInput<'_>>,
     ) -> Result<(), AuError> {
-        property_status_result(ffi::au_auaudiounit_render(
-            self.ptr,
-            action_flags,
-            time_stamp.cast(),
-            frame_count,
-            output_bus_number,
-            output_data.cast(),
-        ))
+        let mut pull_input = pull_input;
+        let (callback, context): (Option<ffi::PullInputCallback>, *mut c_void) = pull_input
+            .as_mut()
+            .map_or((None, core::ptr::null_mut()), |pull_input| {
+                (
+                    Some(pull_input_trampoline),
+                    std::ptr::from_mut::<&mut AuPullInput<'_>>(pull_input).cast(),
+                )
+            });
+        property_status_result(unsafe {
+            ffi::au_auaudiounit_render(
+                self.ptr,
+                action_flags,
+                time_stamp.cast(),
+                frame_count,
+                output_bus_number,
+                output_data.cast(),
+                callback,
+                context,
+            )
+        })
     }
 
     /// Invoke the cached `scheduleParameterBlock`.
@@ -430,33 +580,67 @@ impl AuAudioUnit {
     }
 
     /// Install a capture-backed render observer and receive its token.
-    pub fn add_render_observer_capture(&self) -> Result<AuRenderObserverToken, AuError> {
+    pub fn add_render_observer_capture(
+        &self,
+        capacity: usize,
+    ) -> Result<AuRenderObserverToken, AuError> {
+        let capture = Capture::new(capacity)?;
+        let unit = self.retained()?;
         let mut token = 0isize;
-        let mut error_ptr = core::ptr::null_mut();
         let status = unsafe {
-            ffi::au_auaudiounit_add_render_observer_capture(
-                self.ptr,
+            ffi::au_auaudiounit_add_render_observer(
+                unit.ptr,
+                push_render_observer,
+                capture.retained_context(),
+                CaptureContext::<AuRenderObserverEvent>::RELEASE,
                 &raw mut token,
-                &raw mut error_ptr,
             )
         };
-        status_result(status, error_ptr)?;
-        Ok(AuRenderObserverToken { raw: token })
+        property_status_result(status)?;
+        Ok(AuRenderObserverToken {
+            unit,
+            raw: token,
+            capture,
+        })
     }
 
-    /// Drain the events captured for a render observer token.
-    pub fn take_render_observer_events(
+    #[allow(clippy::missing_errors_doc)]
+    pub fn add_midi_output_capture(&self, capacity: usize) -> Result<AuMidiOutputCapture, AuError> {
+        let capture = Capture::new(capacity)?;
+        let unit = self.retained()?;
+        let mut id = 0isize;
+        let status = unsafe {
+            ffi::au_auaudiounit_add_midi_output_capture(
+                unit.ptr,
+                push_midi_output,
+                capture.retained_context(),
+                CaptureContext::<MidiOutputRecord>::RELEASE,
+                &raw mut id,
+            )
+        };
+        property_status_result(status)?;
+        Ok(AuMidiOutputCapture { unit, id, capture })
+    }
+
+    #[allow(clippy::missing_errors_doc)]
+    pub fn add_midi_output_event_list_capture(
         &self,
-        token: AuRenderObserverToken,
-    ) -> Result<Vec<AuRenderObserverEvent>, AuError> {
-        let ptr =
-            unsafe { ffi::au_auaudiounit_take_render_observer_events_json(self.ptr, token.raw) };
-        take_json(ptr)
-    }
-
-    /// Remove a previously installed render observer.
-    pub fn remove_render_observer(&self, token: AuRenderObserverToken) {
-        unsafe { ffi::au_auaudiounit_remove_render_observer_capture(self.ptr, token.raw) };
+        capacity: usize,
+    ) -> Result<AuMidiOutputEventListCapture, AuError> {
+        let capture = Capture::new(capacity)?;
+        let unit = self.retained()?;
+        let mut id = 0isize;
+        let status = unsafe {
+            ffi::au_auaudiounit_add_midi_output_event_list_capture(
+                unit.ptr,
+                push_midi_output_event_list,
+                capture.retained_context(),
+                CaptureContext::<AuMidiOutputEventListSummary>::RELEASE,
+                &raw mut id,
+            )
+        };
+        property_status_result(status)?;
+        Ok(AuMidiOutputEventListCapture { unit, id, capture })
     }
 
     /// Subscribe to async render-observer capture events.
@@ -533,32 +717,6 @@ impl AuAudioUnit {
             cable,
             event_list,
         ))
-    }
-
-    /// Enable or disable built-in capture for `MIDIOutputEventBlock` callbacks.
-    pub fn set_midi_output_event_capture_enabled(&self, enabled: bool) {
-        unsafe { ffi::au_auaudiounit_set_midi_output_event_capture_enabled(self.ptr, enabled) };
-    }
-
-    /// Drain captured `MIDIOutputEventBlock` callbacks.
-    pub fn take_captured_midi_output_events(&self) -> Result<Vec<AuMidiOutputEvent>, AuError> {
-        let ptr = unsafe { ffi::au_auaudiounit_take_midi_output_events_json(self.ptr) };
-        take_json(ptr)
-    }
-
-    /// Enable or disable built-in capture for `MIDIOutputEventListBlock` callbacks.
-    pub fn set_midi_output_event_list_capture_enabled(&self, enabled: bool) {
-        unsafe {
-            ffi::au_auaudiounit_set_midi_output_event_list_capture_enabled(self.ptr, enabled);
-        };
-    }
-
-    /// Drain captured `MIDIOutputEventListBlock` callbacks.
-    pub fn take_captured_midi_output_event_lists(
-        &self,
-    ) -> Result<Vec<AuMidiOutputEventListSummary>, AuError> {
-        let ptr = unsafe { ffi::au_auaudiounit_take_midi_output_event_lists_json(self.ptr) };
-        take_json(ptr)
     }
 
     /// Install or clear a fixed musical-context block.
@@ -810,5 +968,217 @@ impl AuAudioUnit {
     /// Attempt to cast the unit to `AUAudioUnitV2Bridge`.
     pub fn as_v2_bridge(&self) -> Option<AuAudioUnitV2Bridge> {
         AuAudioUnitV2Bridge::from_au_audio_unit(self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use core::ffi::c_void;
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    use doom_fish_utils::callback_context::CallbackContext;
+
+    use super::AuAudioUnit;
+    use crate::av_audio_unit::InstantiationOptions;
+    use crate::component_description::constants::{
+        AUDIO_UNIT_SUBTYPE_DELAY, AUDIO_UNIT_TYPE_EFFECT,
+    };
+    use crate::component_description::AudioComponentDescription;
+    use crate::ffi;
+    use crate::legacy::{AudioBuffer, AudioBufferList, AudioTimeStamp};
+
+    struct ReleaseFlag(Arc<AtomicBool>);
+
+    impl Drop for ReleaseFlag {
+        fn drop(&mut self) {
+            self.0.store(true, Ordering::SeqCst);
+        }
+    }
+
+    fn flagged_context() -> (*mut c_void, Arc<AtomicBool>) {
+        let released = Arc::new(AtomicBool::new(false));
+        let context = CallbackContext::new(ReleaseFlag(Arc::clone(&released)));
+        (context.retained_ptr(), released)
+    }
+
+    const RELEASE: ffi::ContextRelease = CallbackContext::<ReleaseFlag>::RELEASE;
+    const FRAMES: u32 = 256;
+
+    unsafe extern "C" fn ignore_render(_: *mut c_void, _: u32, _: f64, _: u64, _: u32, _: isize) {}
+
+    unsafe extern "C" fn ignore_midi(_: *mut c_void, _: i64, _: u8, _: isize, _: *const u8) {}
+
+    fn delay() -> AuAudioUnit {
+        AuAudioUnit::instantiate(
+            AudioComponentDescription::apple(AUDIO_UNIT_TYPE_EFFECT, AUDIO_UNIT_SUBTYPE_DELAY),
+            InstantiationOptions::InProcess,
+        )
+        .expect("delay unit")
+    }
+
+    struct RenderCount(AtomicUsize);
+
+    unsafe extern "C" fn count_render(
+        context: *mut c_void,
+        _: u32,
+        _: f64,
+        _: u64,
+        _: u32,
+        _: isize,
+    ) {
+        let _ = unsafe {
+            CallbackContext::<RenderCount>::with(context, "test", |count| {
+                count.0.fetch_add(1, Ordering::SeqCst)
+            })
+        };
+    }
+
+    fn render_mono(unit: &AuAudioUnit, sample_time: f64) {
+        let mut output = vec![0.0_f32; FRAMES as usize];
+        let mut flags = 0;
+        let time_stamp = AudioTimeStamp::with_sample_time(sample_time);
+        let mut list = AudioBufferList {
+            number_buffers: 1,
+            buffers: [AudioBuffer {
+                number_channels: 1,
+                data_byte_size: FRAMES * 4,
+                data: output.as_mut_ptr().cast(),
+            }],
+        };
+        let mut silence = |_: &mut u32,
+                           _: &AudioTimeStamp,
+                           frames: u32,
+                           _: isize,
+                           data: *mut AudioBufferList|
+         -> i32 {
+            let buffer = unsafe { &mut (*data).buffers[0] };
+            if !buffer.data.is_null() {
+                unsafe {
+                    std::ptr::write_bytes(buffer.data.cast::<f32>(), 0, frames as usize);
+                }
+            }
+            0
+        };
+        unsafe {
+            unit.render(
+                &raw mut flags,
+                &raw const time_stamp,
+                FRAMES,
+                0,
+                &raw mut list,
+                Some(&mut silence),
+            )
+        }
+        .expect("render");
+    }
+
+    fn allocated_delay() -> AuAudioUnit {
+        let unit = delay();
+        let input = unit.input_busses().bus_at(0).expect("input bus");
+        input
+            .set_standard_format(44_100.0, 1)
+            .expect("input format");
+        input.set_enabled(true);
+        unit.output_busses()
+            .bus_at(0)
+            .expect("output bus")
+            .set_standard_format(44_100.0, 1)
+            .expect("output format");
+        unit.allocate_render_resources().expect("allocate");
+        unit
+    }
+
+    #[test]
+    fn removed_render_observers_stop_firing_and_are_released_on_dispose() {
+        let unit = allocated_delay();
+        let count = CallbackContext::new(RenderCount(AtomicUsize::new(0)));
+        let (flagged, released) = flagged_context();
+        let (mut counting, mut flagging) = (0, 0);
+        unsafe {
+            assert_eq!(
+                ffi::au_auaudiounit_add_render_observer(
+                    unit.ptr,
+                    count_render,
+                    count.retained_ptr(),
+                    CallbackContext::<RenderCount>::RELEASE,
+                    &raw mut counting,
+                ),
+                0
+            );
+            assert_eq!(
+                ffi::au_auaudiounit_add_render_observer(
+                    unit.ptr,
+                    ignore_render,
+                    flagged,
+                    RELEASE,
+                    &raw mut flagging,
+                ),
+                0
+            );
+        }
+        render_mono(&unit, 0.0);
+        assert_eq!(count.get().0.load(Ordering::SeqCst), 2);
+        unsafe { ffi::au_auaudiounit_remove_render_observer(unit.ptr, counting) };
+        render_mono(&unit, f64::from(FRAMES));
+        assert_eq!(count.get().0.load(Ordering::SeqCst), 2);
+        unsafe { ffi::au_auaudiounit_remove_render_observer(unit.ptr, flagging) };
+        assert!(!released.load(Ordering::SeqCst));
+        drop(unit);
+        assert!(released.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn midi_captures_are_released_independently() {
+        let unit = delay();
+        let (first_context, first_released) = flagged_context();
+        let (second_context, second_released) = flagged_context();
+        let (mut first, mut second) = (0, 0);
+        unsafe {
+            assert_eq!(
+                ffi::au_auaudiounit_add_midi_output_capture(
+                    unit.ptr,
+                    ignore_midi,
+                    first_context,
+                    RELEASE,
+                    &raw mut first,
+                ),
+                0
+            );
+            assert_eq!(
+                ffi::au_auaudiounit_add_midi_output_capture(
+                    unit.ptr,
+                    ignore_midi,
+                    second_context,
+                    RELEASE,
+                    &raw mut second,
+                ),
+                0
+            );
+        }
+        assert_ne!(first, second);
+        unsafe { ffi::au_auaudiounit_remove_midi_output_capture(unit.ptr, first) };
+        assert!(first_released.load(Ordering::SeqCst));
+        assert!(!second_released.load(Ordering::SeqCst));
+        unsafe { ffi::au_auaudiounit_remove_midi_output_capture(unit.ptr, second) };
+        assert!(second_released.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn disposing_the_unit_releases_leftover_contexts() {
+        let unit = delay();
+        let (context, released) = flagged_context();
+        let mut token = 0;
+        unsafe {
+            ffi::au_auaudiounit_add_render_observer(
+                unit.ptr,
+                ignore_render,
+                context,
+                RELEASE,
+                &raw mut token,
+            );
+        }
+        drop(unit);
+        assert!(released.load(Ordering::SeqCst));
     }
 }

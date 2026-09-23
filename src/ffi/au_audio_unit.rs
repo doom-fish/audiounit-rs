@@ -1,5 +1,12 @@
 use core::ffi::{c_char, c_void};
 
+pub type ContextRelease = unsafe extern "C" fn(*mut c_void);
+pub type RenderObserverCallback = unsafe extern "C" fn(*mut c_void, u32, f64, u64, u32, isize);
+pub type MidiOutputCallback = unsafe extern "C" fn(*mut c_void, i64, u8, isize, *const u8);
+pub type MidiOutputEventListCallback = unsafe extern "C" fn(*mut c_void, i64, u8, i32, u32);
+pub type PullInputCallback =
+    unsafe extern "C" fn(*mut c_void, *mut u32, *const c_void, u32, isize, *mut c_void) -> i32;
+
 unsafe extern "C" {
     pub fn au_auaudiounit_instantiate_sync(
         component_type: u32,
@@ -36,6 +43,8 @@ unsafe extern "C" {
         frame_count: u32,
         output_bus_number: isize,
         output_data: *mut c_void,
+        pull_input: Option<PullInputCallback>,
+        pull_input_context: *mut c_void,
     ) -> i32;
     pub fn au_auaudiounit_schedule_parameter(
         ptr: *mut c_void,
@@ -44,16 +53,14 @@ unsafe extern "C" {
         parameter_address: u64,
         value: f32,
     ) -> i32;
-    pub fn au_auaudiounit_add_render_observer_capture(
+    pub fn au_auaudiounit_add_render_observer(
         ptr: *mut c_void,
+        callback: RenderObserverCallback,
+        context: *mut c_void,
+        release: ContextRelease,
         out_token: *mut isize,
-        out_error_msg: *mut *mut c_char,
     ) -> i32;
-    pub fn au_auaudiounit_take_render_observer_events_json(
-        ptr: *mut c_void,
-        token: isize,
-    ) -> *mut c_char;
-    pub fn au_auaudiounit_remove_render_observer_capture(ptr: *mut c_void, token: isize);
+    pub fn au_auaudiounit_remove_render_observer(ptr: *mut c_void, token: isize);
     pub fn au_auaudiounit_schedule_midi_event(
         ptr: *mut c_void,
         event_sample_time: i64,
@@ -67,13 +74,22 @@ unsafe extern "C" {
         cable: u8,
         event_list: *const c_void,
     ) -> i32;
-    pub fn au_auaudiounit_set_midi_output_event_capture_enabled(ptr: *mut c_void, enabled: bool);
-    pub fn au_auaudiounit_take_midi_output_events_json(ptr: *mut c_void) -> *mut c_char;
-    pub fn au_auaudiounit_set_midi_output_event_list_capture_enabled(
+    pub fn au_auaudiounit_add_midi_output_capture(
         ptr: *mut c_void,
-        enabled: bool,
-    );
-    pub fn au_auaudiounit_take_midi_output_event_lists_json(ptr: *mut c_void) -> *mut c_char;
+        callback: MidiOutputCallback,
+        context: *mut c_void,
+        release: ContextRelease,
+        out_id: *mut isize,
+    ) -> i32;
+    pub fn au_auaudiounit_remove_midi_output_capture(ptr: *mut c_void, id: isize);
+    pub fn au_auaudiounit_add_midi_output_event_list_capture(
+        ptr: *mut c_void,
+        callback: MidiOutputEventListCallback,
+        context: *mut c_void,
+        release: ContextRelease,
+        out_id: *mut isize,
+    ) -> i32;
+    pub fn au_auaudiounit_remove_midi_output_event_list_capture(ptr: *mut c_void, id: isize);
     pub fn au_auaudiounit_set_musical_context_json(
         ptr: *mut c_void,
         value: *const c_char,

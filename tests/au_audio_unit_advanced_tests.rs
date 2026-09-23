@@ -1,5 +1,7 @@
 mod support;
 
+use std::time::{Duration, Instant};
+
 use audiounit::prelude::*;
 
 #[test]
@@ -38,17 +40,22 @@ fn au_audio_unit_host_context_and_capture_smoke() -> Result<(), Box<dyn std::err
         host_transport_state_flags::MOVING | host_transport_state_flags::CHANGED
     );
 
-    let render_token = unit.add_render_observer_capture()?;
-    assert!(unit.take_render_observer_events(render_token)?.is_empty());
-    unit.remove_render_observer(render_token);
+    let render_token = unit.add_render_observer_capture(16)?;
+    assert!(render_token.take_events().is_empty());
+    drop(render_token);
+    assert!(unit.add_render_observer_capture(0).is_err());
 
-    unit.set_midi_output_event_capture_enabled(true);
-    assert!(unit.take_captured_midi_output_events()?.is_empty());
-    unit.set_midi_output_event_capture_enabled(false);
+    let first = unit.add_midi_output_capture(16)?;
+    let second = unit.add_midi_output_capture(16)?;
+    assert!(first.take_events().is_empty());
+    drop(first);
+    assert!(second.take_events().is_empty());
+    assert_eq!(second.dropped_events(), 0);
+    drop(second);
 
-    unit.set_midi_output_event_list_capture_enabled(true);
-    assert!(unit.take_captured_midi_output_event_lists()?.is_empty());
-    unit.set_midi_output_event_list_capture_enabled(false);
+    let event_lists = unit.add_midi_output_event_list_capture(16)?;
+    assert!(event_lists.take_events().is_empty());
+    drop(event_lists);
 
     Ok(())
 }
@@ -60,9 +67,9 @@ fn au_parameter_observer_capture_smoke() -> Result<(), Box<dyn std::error::Error
         InstantiationOptions::InProcess,
     )?;
     let tree = unit.parameter_tree().expect("missing parameter tree");
-    let value_token = tree.add_parameter_observer_capture()?;
-    let recording_token = tree.add_parameter_recording_observer_capture()?;
-    let automation_token = tree.add_parameter_automation_observer_capture()?;
+    let value_token = tree.add_parameter_observer_capture(64)?;
+    let recording_token = tree.add_parameter_recording_observer_capture(64)?;
+    let automation_token = tree.add_parameter_automation_observer_capture(64)?;
     let parameter = support::first_parameter(&unit)?;
     let info = parameter.info()?;
     let current_value = parameter.value();
@@ -74,13 +81,40 @@ fn au_parameter_observer_capture_smoke() -> Result<(), Box<dyn std::error::Error
     parameter.set_value(new_value);
     parameter.set_value_with_event(new_value, 0, AuParameterAutomationEventType::Value);
 
-    let _ = tree.take_parameter_observer_events(value_token)?;
-    let _ = tree.take_parameter_recording_events(recording_token)?;
-    let _ = tree.take_parameter_automation_events(automation_token)?;
+    let mut values = Vec::new();
+    let mut recordings = Vec::new();
+    let mut automations = Vec::new();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while (values.is_empty() || recordings.is_empty() || automations.is_empty())
+        && Instant::now() < deadline
+    {
+        values.extend(value_token.take_events());
+        recordings.extend(recording_token.take_events());
+        automations.extend(automation_token.take_events());
+        std::thread::sleep(Duration::from_millis(5));
+    }
 
-    tree.remove_parameter_observer(value_token);
-    tree.remove_parameter_observer(recording_token);
-    tree.remove_parameter_observer(automation_token);
+    assert!(!values.is_empty());
+    assert!(!recordings.is_empty());
+    assert!(!automations.is_empty());
+    assert!(values.iter().all(
+        |event| event.address == info.address && (event.value - new_value).abs() < f32::EPSILON
+    ));
+    assert!(recordings.iter().all(
+        |event| event.address == info.address && (event.value - new_value).abs() < f32::EPSILON
+    ));
+    assert!(automations.iter().all(
+        |event| event.address == info.address && (event.value - new_value).abs() < f32::EPSILON
+    ));
+    assert_eq!(value_token.dropped_events(), 0);
+    assert!(tree.add_parameter_observer_capture(0).is_err());
+    assert!(tree
+        .add_parameter_observer_capture(CAPTURE_CAPACITY_MAX + 1)
+        .is_err());
+
+    drop(value_token);
+    drop(recording_token);
+    drop(automation_token);
     Ok(())
 }
 

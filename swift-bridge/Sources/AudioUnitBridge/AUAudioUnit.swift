@@ -47,51 +47,111 @@ private final class MessageChannelHandle {
     }
 }
 
-private let auAdvancedLock = NSLock()
-private var renderObserverEvents: [ObjectIdentifier: [Int: [[String: Any]]]] = [:]
-private var midiOutputEvents: [ObjectIdentifier: [[String: Any]]] = [:]
-private var midiOutputEventLists: [ObjectIdentifier: [[String: Any]]] = [:]
-private var musicalContextStates: [ObjectIdentifier: MusicalContextState] = [:]
-private var transportStateStates: [ObjectIdentifier: TransportStateState] = [:]
+private let musicalContextKey = UnsafeMutableRawPointer.allocate(byteCount: 1, alignment: 1)
+private let transportStateKey = UnsafeMutableRawPointer.allocate(byteCount: 1, alignment: 1)
+private let midiOutputCapturesKey = UnsafeMutableRawPointer.allocate(byteCount: 1, alignment: 1)
+private let midiOutputEventListCapturesKey = UnsafeMutableRawPointer.allocate(byteCount: 1, alignment: 1)
+private let midiCaptureLock = NSLock()
+private var nextMidiCaptureID = 1
 
-private func audioUnitKey(_ unit: AUAudioUnit) -> ObjectIdentifier {
-    ObjectIdentifier(unit)
+public typealias RenderObserverCallback = @convention(c) (
+    UnsafeMutableRawPointer?,
+    UInt32,
+    Float64,
+    UInt64,
+    UInt32,
+    Int
+) -> Void
+
+public typealias MidiOutputCallback = @convention(c) (
+    UnsafeMutableRawPointer?,
+    Int64,
+    UInt8,
+    Int,
+    UnsafePointer<UInt8>
+) -> Void
+
+public typealias MidiOutputEventListCallback = @convention(c) (
+    UnsafeMutableRawPointer?,
+    Int64,
+    UInt8,
+    Int32,
+    UInt32
+) -> Void
+
+public typealias PullInputCallback = @convention(c) (
+    UnsafeMutableRawPointer?,
+    UnsafeMutablePointer<AudioUnitRenderActionFlags>,
+    UnsafePointer<AudioTimeStamp>,
+    AUAudioFrameCount,
+    Int,
+    UnsafeMutablePointer<AudioBufferList>
+) -> AUAudioUnitStatus
+
+private struct SinkRef<Callback> {
+    let context: UnsafeMutableRawPointer
+    let callback: Callback
 }
 
-private func appendRenderObserverEvent(
-    unitKey: ObjectIdentifier,
-    token: Int,
-    event: [String: Any]
+private final class MidiCaptures<Block, Callback> {
+    let hostBlock: Block?
+    var sinks: [Int: (holder: RustContext, callback: Callback)] = [:]
+
+    init(hostBlock: Block?) {
+        self.hostBlock = hostBlock
+    }
+
+    var holders: [RustContext] {
+        sinks.values.map(\.holder)
+    }
+
+    var refs: [SinkRef<Callback>] {
+        sinks.values.map { SinkRef(context: $0.holder.pointer, callback: $0.callback) }
+    }
+}
+
+private typealias MidiOutputCaptures = MidiCaptures<AUMIDIOutputEventBlock, MidiOutputCallback>
+private typealias MidiOutputEventListCaptures = MidiCaptures<AUMIDIEventListBlock, MidiOutputEventListCallback>
+
+private func installMidiOutputDispatcher(_ unit: AUAudioUnit, _ captures: MidiOutputCaptures) {
+    let host = captures.hostBlock
+    guard !captures.sinks.isEmpty else {
+        unit.midiOutputEventBlock = host
+        return
+    }
+    let holders = captures.holders
+    let sinks = captures.refs
+    unit.midiOutputEventBlock = { eventSampleTime, cable, length, midiBytes in
+        withExtendedLifetime(holders) {
+            for sink in sinks {
+                sink.callback(sink.context, eventSampleTime, cable, length, midiBytes)
+            }
+        }
+        return host?(eventSampleTime, cable, length, midiBytes) ?? noErr
+    }
+}
+
+private func installMidiOutputEventListDispatcher(
+    _ unit: AUAudioUnit,
+    _ captures: MidiOutputEventListCaptures
 ) {
-    var unitEvents = renderObserverEvents[unitKey] ?? [:]
-    var events = unitEvents[token] ?? []
-    events.append(event)
-    unitEvents[token] = events
-    renderObserverEvents[unitKey] = unitEvents
-}
-
-private func drainRenderObserverEvents(unitKey: ObjectIdentifier, token: Int) -> [[String: Any]] {
-    var unitEvents = renderObserverEvents[unitKey] ?? [:]
-    let events = unitEvents[token] ?? []
-    unitEvents[token] = []
-    renderObserverEvents[unitKey] = unitEvents
-    return events
-}
-
-private func clearRenderObserverEvents(unitKey: ObjectIdentifier, token: Int) {
-    renderObserverEvents[unitKey]?[token] = nil
-}
-
-private func drainMidiOutputEvents(unitKey: ObjectIdentifier) -> [[String: Any]] {
-    let events = midiOutputEvents[unitKey] ?? []
-    midiOutputEvents[unitKey] = []
-    return events
-}
-
-private func drainMidiOutputEventLists(unitKey: ObjectIdentifier) -> [[String: Any]] {
-    let events = midiOutputEventLists[unitKey] ?? []
-    midiOutputEventLists[unitKey] = []
-    return events
+    let host = captures.hostBlock
+    guard !captures.sinks.isEmpty else {
+        unit.midiOutputEventListBlock = host
+        return
+    }
+    let holders = captures.holders
+    let sinks = captures.refs
+    unit.midiOutputEventListBlock = { eventSampleTime, cable, eventList in
+        withExtendedLifetime(holders) {
+            let midiProtocol = eventList.pointee.protocol.rawValue
+            let packetCount = eventList.pointee.numPackets
+            for sink in sinks {
+                sink.callback(sink.context, eventSampleTime, cable, midiProtocol, packetCount)
+            }
+        }
+        return host?(eventSampleTime, cable, eventList) ?? noErr
+    }
 }
 
 private func makeMusicalContextState(from object: Any?) -> MusicalContextState? {
@@ -305,19 +365,26 @@ public func au_auaudiounit_render(
     _ timeStamp: UnsafePointer<AudioTimeStamp>?,
     _ frameCount: UInt32,
     _ outputBusNumber: Int,
-    _ outputData: UnsafeMutablePointer<AudioBufferList>?
+    _ outputData: UnsafeMutablePointer<AudioBufferList>?,
+    _ pullInput: PullInputCallback?,
+    _ pullInputContext: UnsafeMutableRawPointer?
 ) -> Int32 {
     guard let timeStamp, let outputData else {
         return AU_INVALID_ARGUMENT
     }
     var flags = actionFlags?.pointee ?? []
+    let pullInputBlock: AURenderPullInputBlock? = pullInput.map { callback in
+        { flags, timeStamp, frameCount, inputBusNumber, inputData in
+            callback(pullInputContext, flags, timeStamp, frameCount, inputBusNumber, inputData)
+        }
+    }
     let status = borrowBox(ptr, as: AUAudioUnit.self).renderBlock(
         &flags,
         timeStamp,
         frameCount,
         outputBusNumber,
         outputData,
-        nil
+        pullInputBlock
     )
     actionFlags?.pointee = flags
     return status
@@ -340,58 +407,38 @@ public func au_auaudiounit_schedule_parameter(
     return AU_OK
 }
 
-@_cdecl("au_auaudiounit_add_render_observer_capture")
-public func au_auaudiounit_add_render_observer_capture(
+@_cdecl("au_auaudiounit_add_render_observer")
+public func au_auaudiounit_add_render_observer(
     _ ptr: UnsafeMutableRawPointer,
-    _ outToken: UnsafeMutablePointer<Int>,
-    _ outErrorMsg: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>
+    _ callback: RenderObserverCallback?,
+    _ context: UnsafeMutableRawPointer?,
+    _ release: RustContextRelease?,
+    _ outToken: UnsafeMutablePointer<Int>
 ) -> Int32 {
-    outErrorMsg.pointee = nil
-    let unit = borrowBox(ptr, as: AUAudioUnit.self)
-    let unitKey = audioUnitKey(unit)
-    var token = 0
-    token = unit.token(byAddingRenderObserver: { actionFlags, timeStamp, frameCount, outputBusNumber in
-        let event: [String: Any] = [
-            "actionFlags": actionFlags.rawValue,
-            "sampleTime": timeStamp.pointee.mSampleTime,
-            "hostTime": timeStamp.pointee.mHostTime,
-            "frameCount": Int(frameCount),
-            "outputBusNumber": outputBusNumber,
-        ]
-        auAdvancedLock.lock()
-        appendRenderObserverEvent(unitKey: unitKey, token: token, event: event)
-        auAdvancedLock.unlock()
-    })
-    outToken.pointee = token
-    auAdvancedLock.lock()
-    _ = renderObserverEvents[unitKey, default: [:]][token]
-    auAdvancedLock.unlock()
+    guard let holder = adoptRustContext(context, release), let callback else {
+        return AU_INVALID_ARGUMENT
+    }
+    let pointer = holder.pointer
+    outToken.pointee = borrowBox(ptr, as: AUAudioUnit.self).token(
+        byAddingRenderObserver: { actionFlags, timeStamp, frameCount, outputBusNumber in
+            withExtendedLifetime(holder) {
+                callback(
+                    pointer,
+                    actionFlags.rawValue,
+                    timeStamp.pointee.mSampleTime,
+                    timeStamp.pointee.mHostTime,
+                    frameCount,
+                    outputBusNumber
+                )
+            }
+        }
+    )
     return AU_OK
 }
 
-@_cdecl("au_auaudiounit_take_render_observer_events_json")
-public func au_auaudiounit_take_render_observer_events_json(
-    _ ptr: UnsafeMutableRawPointer,
-    _ token: Int
-) -> UnsafeMutablePointer<CChar>? {
-    let unitKey = audioUnitKey(borrowBox(ptr, as: AUAudioUnit.self))
-    auAdvancedLock.lock()
-    let events = drainRenderObserverEvents(unitKey: unitKey, token: token)
-    auAdvancedLock.unlock()
-    return jsonCString(events)
-}
-
-@_cdecl("au_auaudiounit_remove_render_observer_capture")
-public func au_auaudiounit_remove_render_observer_capture(
-    _ ptr: UnsafeMutableRawPointer,
-    _ token: Int
-) {
-    let unit = borrowBox(ptr, as: AUAudioUnit.self)
-    let unitKey = audioUnitKey(unit)
-    unit.removeRenderObserver(token)
-    auAdvancedLock.lock()
-    clearRenderObserverEvents(unitKey: unitKey, token: token)
-    auAdvancedLock.unlock()
+@_cdecl("au_auaudiounit_remove_render_observer")
+public func au_auaudiounit_remove_render_observer(_ ptr: UnsafeMutableRawPointer, _ token: Int) {
+    borrowBox(ptr, as: AUAudioUnit.self).removeRenderObserver(token)
 }
 
 @_cdecl("au_auaudiounit_schedule_midi_event")
@@ -432,76 +479,91 @@ public func au_auaudiounit_schedule_midi_event_list(
     )
 }
 
-@_cdecl("au_auaudiounit_set_midi_output_event_capture_enabled")
-public func au_auaudiounit_set_midi_output_event_capture_enabled(
+@_cdecl("au_auaudiounit_add_midi_output_capture")
+public func au_auaudiounit_add_midi_output_capture(
     _ ptr: UnsafeMutableRawPointer,
-    _ enabled: Bool
+    _ callback: MidiOutputCallback?,
+    _ context: UnsafeMutableRawPointer?,
+    _ release: RustContextRelease?,
+    _ outID: UnsafeMutablePointer<Int>
+) -> Int32 {
+    guard let holder = adoptRustContext(context, release), let callback else {
+        return AU_INVALID_ARGUMENT
+    }
+    let unit = borrowBox(ptr, as: AUAudioUnit.self)
+    midiCaptureLock.lock()
+    defer { midiCaptureLock.unlock() }
+    let captures = associatedValue(unit, midiOutputCapturesKey, as: MidiOutputCaptures.self)
+        ?? MidiOutputCaptures(hostBlock: unit.midiOutputEventBlock)
+    let id = nextMidiCaptureID
+    nextMidiCaptureID += 1
+    captures.sinks[id] = (holder, callback)
+    setAssociatedValue(unit, midiOutputCapturesKey, captures)
+    installMidiOutputDispatcher(unit, captures)
+    outID.pointee = id
+    return AU_OK
+}
+
+@_cdecl("au_auaudiounit_remove_midi_output_capture")
+public func au_auaudiounit_remove_midi_output_capture(_ ptr: UnsafeMutableRawPointer, _ id: Int) {
+    let unit = borrowBox(ptr, as: AUAudioUnit.self)
+    midiCaptureLock.lock()
+    defer { midiCaptureLock.unlock() }
+    guard let captures = associatedValue(unit, midiOutputCapturesKey, as: MidiOutputCaptures.self) else {
+        return
+    }
+    captures.sinks[id] = nil
+    installMidiOutputDispatcher(unit, captures)
+    if captures.sinks.isEmpty {
+        setAssociatedValue(unit, midiOutputCapturesKey, Optional<MidiOutputCaptures>.none)
+    }
+}
+
+@_cdecl("au_auaudiounit_add_midi_output_event_list_capture")
+public func au_auaudiounit_add_midi_output_event_list_capture(
+    _ ptr: UnsafeMutableRawPointer,
+    _ callback: MidiOutputEventListCallback?,
+    _ context: UnsafeMutableRawPointer?,
+    _ release: RustContextRelease?,
+    _ outID: UnsafeMutablePointer<Int>
+) -> Int32 {
+    guard let holder = adoptRustContext(context, release), let callback else {
+        return AU_INVALID_ARGUMENT
+    }
+    let unit = borrowBox(ptr, as: AUAudioUnit.self)
+    midiCaptureLock.lock()
+    defer { midiCaptureLock.unlock() }
+    let captures = associatedValue(unit, midiOutputEventListCapturesKey, as: MidiOutputEventListCaptures.self)
+        ?? MidiOutputEventListCaptures(hostBlock: unit.midiOutputEventListBlock)
+    let id = nextMidiCaptureID
+    nextMidiCaptureID += 1
+    captures.sinks[id] = (holder, callback)
+    setAssociatedValue(unit, midiOutputEventListCapturesKey, captures)
+    installMidiOutputEventListDispatcher(unit, captures)
+    outID.pointee = id
+    return AU_OK
+}
+
+@_cdecl("au_auaudiounit_remove_midi_output_event_list_capture")
+public func au_auaudiounit_remove_midi_output_event_list_capture(
+    _ ptr: UnsafeMutableRawPointer,
+    _ id: Int
 ) {
     let unit = borrowBox(ptr, as: AUAudioUnit.self)
-    let unitKey = audioUnitKey(unit)
-    auAdvancedLock.lock()
-    if !enabled {
-        midiOutputEvents[unitKey] = []
+    midiCaptureLock.lock()
+    defer { midiCaptureLock.unlock() }
+    guard let captures = associatedValue(
+        unit,
+        midiOutputEventListCapturesKey,
+        as: MidiOutputEventListCaptures.self
+    ) else {
+        return
     }
-    auAdvancedLock.unlock()
-    unit.midiOutputEventBlock = enabled ? { eventSampleTime, cable, length, midiBytes in
-        let bytes = Array(UnsafeBufferPointer(start: midiBytes, count: length))
-        auAdvancedLock.lock()
-        var events = midiOutputEvents[unitKey] ?? []
-        events.append([
-            "eventSampleTime": eventSampleTime,
-            "cable": Int(cable),
-            "bytes": bytes,
-        ])
-        midiOutputEvents[unitKey] = events
-        auAdvancedLock.unlock()
-        return noErr
-    } : nil
-}
-
-@_cdecl("au_auaudiounit_take_midi_output_events_json")
-public func au_auaudiounit_take_midi_output_events_json(_ ptr: UnsafeMutableRawPointer) -> UnsafeMutablePointer<CChar>? {
-    let unitKey = audioUnitKey(borrowBox(ptr, as: AUAudioUnit.self))
-    auAdvancedLock.lock()
-    let events = drainMidiOutputEvents(unitKey: unitKey)
-    auAdvancedLock.unlock()
-    return jsonCString(events)
-}
-
-@_cdecl("au_auaudiounit_set_midi_output_event_list_capture_enabled")
-public func au_auaudiounit_set_midi_output_event_list_capture_enabled(
-    _ ptr: UnsafeMutableRawPointer,
-    _ enabled: Bool
-) {
-    let unit = borrowBox(ptr, as: AUAudioUnit.self)
-    let unitKey = audioUnitKey(unit)
-    auAdvancedLock.lock()
-    if !enabled {
-        midiOutputEventLists[unitKey] = []
+    captures.sinks[id] = nil
+    installMidiOutputEventListDispatcher(unit, captures)
+    if captures.sinks.isEmpty {
+        setAssociatedValue(unit, midiOutputEventListCapturesKey, Optional<MidiOutputEventListCaptures>.none)
     }
-    auAdvancedLock.unlock()
-    unit.midiOutputEventListBlock = enabled ? { eventSampleTime, cable, eventList in
-        auAdvancedLock.lock()
-        var events = midiOutputEventLists[unitKey] ?? []
-        events.append([
-            "eventSampleTime": eventSampleTime,
-            "cable": Int(cable),
-            "protocol": eventList.pointee.protocol.rawValue,
-            "numPackets": Int(eventList.pointee.numPackets),
-        ])
-        midiOutputEventLists[unitKey] = events
-        auAdvancedLock.unlock()
-        return noErr
-    } : nil
-}
-
-@_cdecl("au_auaudiounit_take_midi_output_event_lists_json")
-public func au_auaudiounit_take_midi_output_event_lists_json(_ ptr: UnsafeMutableRawPointer) -> UnsafeMutablePointer<CChar>? {
-    let unitKey = audioUnitKey(borrowBox(ptr, as: AUAudioUnit.self))
-    auAdvancedLock.lock()
-    let events = drainMidiOutputEventLists(unitKey: unitKey)
-    auAdvancedLock.unlock()
-    return jsonCString(events)
 }
 
 @_cdecl("au_auaudiounit_set_musical_context_json")
@@ -512,11 +574,8 @@ public func au_auaudiounit_set_musical_context_json(
 ) -> Int32 {
     outErrorMsg.pointee = nil
     let unit = borrowBox(ptr, as: AUAudioUnit.self)
-    let unitKey = audioUnitKey(unit)
     guard let value else {
-        auAdvancedLock.lock()
-        musicalContextStates[unitKey] = nil
-        auAdvancedLock.unlock()
+        setAssociatedValue(unit, musicalContextKey, Optional<MusicalContextState>.none)
         unit.musicalContextBlock = nil
         return AU_OK
     }
@@ -524,30 +583,24 @@ public func au_auaudiounit_set_musical_context_json(
         setError(outErrorMsg, "musical context payload must be a JSON object")
         return AU_INVALID_ARGUMENT
     }
-    auAdvancedLock.lock()
-    musicalContextStates[unitKey] = state
-    auAdvancedLock.unlock()
+    setAssociatedValue(unit, musicalContextKey, state)
     unit.musicalContextBlock = { currentTempo, timeSignatureNumerator, timeSignatureDenominator, currentBeatPosition, sampleOffsetToNextBeat, currentMeasureDownbeatPosition in
-        auAdvancedLock.lock()
-        let current = musicalContextStates[unitKey]
-        auAdvancedLock.unlock()
-        guard let current else { return false }
-        if let currentTempo, let value = current.currentTempo {
+        if let currentTempo, let value = state.currentTempo {
             currentTempo.pointee = value
         }
-        if let timeSignatureNumerator, let value = current.timeSignatureNumerator {
+        if let timeSignatureNumerator, let value = state.timeSignatureNumerator {
             timeSignatureNumerator.pointee = value
         }
-        if let timeSignatureDenominator, let value = current.timeSignatureDenominator {
+        if let timeSignatureDenominator, let value = state.timeSignatureDenominator {
             timeSignatureDenominator.pointee = value
         }
-        if let currentBeatPosition, let value = current.currentBeatPosition {
+        if let currentBeatPosition, let value = state.currentBeatPosition {
             currentBeatPosition.pointee = value
         }
-        if let sampleOffsetToNextBeat, let value = current.sampleOffsetToNextBeat {
+        if let sampleOffsetToNextBeat, let value = state.sampleOffsetToNextBeat {
             sampleOffsetToNextBeat.pointee = value
         }
-        if let currentMeasureDownbeatPosition, let value = current.currentMeasureDownbeatPosition {
+        if let currentMeasureDownbeatPosition, let value = state.currentMeasureDownbeatPosition {
             currentMeasureDownbeatPosition.pointee = value
         }
         return true
@@ -557,10 +610,8 @@ public func au_auaudiounit_set_musical_context_json(
 
 @_cdecl("au_auaudiounit_musical_context_json")
 public func au_auaudiounit_musical_context_json(_ ptr: UnsafeMutableRawPointer) -> UnsafeMutablePointer<CChar>? {
-    let unitKey = audioUnitKey(borrowBox(ptr, as: AUAudioUnit.self))
-    auAdvancedLock.lock()
-    let state = musicalContextStates[unitKey]
-    auAdvancedLock.unlock()
+    let unit = borrowBox(ptr, as: AUAudioUnit.self)
+    let state = associatedValue(unit, musicalContextKey, as: MusicalContextState.self)
     return state.map { jsonCString($0.jsonObject) } ?? ffiString("null")
 }
 
@@ -572,11 +623,8 @@ public func au_auaudiounit_set_transport_state_json(
 ) -> Int32 {
     outErrorMsg.pointee = nil
     let unit = borrowBox(ptr, as: AUAudioUnit.self)
-    let unitKey = audioUnitKey(unit)
     guard let value else {
-        auAdvancedLock.lock()
-        transportStateStates[unitKey] = nil
-        auAdvancedLock.unlock()
+        setAssociatedValue(unit, transportStateKey, Optional<TransportStateState>.none)
         unit.transportStateBlock = nil
         return AU_OK
     }
@@ -584,24 +632,19 @@ public func au_auaudiounit_set_transport_state_json(
         setError(outErrorMsg, "transport state payload must be a JSON object")
         return AU_INVALID_ARGUMENT
     }
-    auAdvancedLock.lock()
-    transportStateStates[unitKey] = state
-    auAdvancedLock.unlock()
+    setAssociatedValue(unit, transportStateKey, state)
+    let flags = AUHostTransportStateFlags(rawValue: UInt(clamping: state.transportStateFlags))
     unit.transportStateBlock = { transportStateFlags, currentSamplePosition, cycleStartBeatPosition, cycleEndBeatPosition in
-        auAdvancedLock.lock()
-        let current = transportStateStates[unitKey]
-        auAdvancedLock.unlock()
-        guard let current else { return false }
         if let transportStateFlags {
-            transportStateFlags.pointee = AUHostTransportStateFlags(rawValue: UInt(current.transportStateFlags))
+            transportStateFlags.pointee = flags
         }
-        if let currentSamplePosition, let value = current.currentSamplePosition {
+        if let currentSamplePosition, let value = state.currentSamplePosition {
             currentSamplePosition.pointee = value
         }
-        if let cycleStartBeatPosition, let value = current.cycleStartBeatPosition {
+        if let cycleStartBeatPosition, let value = state.cycleStartBeatPosition {
             cycleStartBeatPosition.pointee = value
         }
-        if let cycleEndBeatPosition, let value = current.cycleEndBeatPosition {
+        if let cycleEndBeatPosition, let value = state.cycleEndBeatPosition {
             cycleEndBeatPosition.pointee = value
         }
         return true
@@ -611,10 +654,8 @@ public func au_auaudiounit_set_transport_state_json(
 
 @_cdecl("au_auaudiounit_transport_state_json")
 public func au_auaudiounit_transport_state_json(_ ptr: UnsafeMutableRawPointer) -> UnsafeMutablePointer<CChar>? {
-    let unitKey = audioUnitKey(borrowBox(ptr, as: AUAudioUnit.self))
-    auAdvancedLock.lock()
-    let state = transportStateStates[unitKey]
-    auAdvancedLock.unlock()
+    let unit = borrowBox(ptr, as: AUAudioUnit.self)
+    let state = associatedValue(unit, transportStateKey, as: TransportStateState.self)
     return state.map { jsonCString($0.jsonObject) } ?? ffiString("null")
 }
 
