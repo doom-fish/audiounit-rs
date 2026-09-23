@@ -1,5 +1,88 @@
 # Changelog
 
+All notable changes to `audiounit` are documented here.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.4.0] - Unreleased
+
+### Security
+
+- Render-observer, MIDI-output and parameter-observer callbacks run on the
+  render thread, but they built dictionaries, took a global lock and copied
+  the whole event array on every callback, and an undrained capture grew
+  without bound. Captures now push plain values into a bounded lock-free
+  ring, so the render thread never allocates or locks. The callback context
+  stays alive until the framework drops the block.
+- Apple's DLS synth crashed when several threads initialized it at once.
+  Allocating and deallocating render resources, the legacy
+  `AudioComponentInstanceNew`/`Dispose` and
+  `AudioUnitInitialize`/`Uninitialize` helpers, sampler loading, and the final
+  release of audio-unit handles are now serialized by a process-wide lock.
+
+### Fixed
+
+- `render` passed no pull-input block, so effects never received input.
+- MIDI-output capture replaced the host's `MIDIOutputEventBlock` globally, and
+  two captures overwrote each other. Captures now chain the installed block
+  and restore it when the last capture is dropped.
+- `AudioUnitGetPropertyInfo`'s `Boolean` out-parameter was read as `bool`; a
+  unit writing 2 produced an invalid `bool`.
+- Handle `Drop` now skips null pointers; the comment claiming the Swift bridge
+  tolerates null was wrong.
+- Preset and sound-bank paths were converted lossily, so a non-UTF-8 path
+  could load a different file. Paths now reach the framework byte for byte.
+- A null unit returned with a success status is now an error instead of a
+  null handle, and the timeout message no longer traps on huge timeouts.
+- Legacy `#[repr(C)]` layouts are pinned by compile-time and runtime checks;
+  `AudioTimeStamp` is 64 bytes, matching the OS ABI.
+
+### Changed
+
+- **Breaking:** `AuAudioUnit::render` takes an extra
+  `pull_input: Option<&mut AuPullInput<'_>>` argument.
+- **Breaking:** `add_render_observer_capture(capacity)` and the
+  `AuParameterTree::add_parameter_*_capture(capacity)` methods take a capacity
+  (1 to `CAPTURE_CAPACITY_MAX`) and return owning tokens
+  (`AuRenderObserverToken`, `AuParameterObserverToken<T>`) that are no longer
+  `Copy`. Drain them with `take_events()`, read `dropped_events()`, and drop
+  them to unregister. When a ring is full the oldest event is dropped.
+- **Breaking:** `AuMidiOutputEvent` has a new `truncated` field; events keep
+  the first `MIDI_OUTPUT_INLINE_BYTES` (128) bytes.
+- **Breaking:** the public `ffi` declarations changed to match the bridge:
+  instantiation takes a timeout, render takes a pull-input callback, and the
+  capture functions register C callbacks with a context and release function.
+- The minimum supported Rust version is 1.82.
+- `doom-fish-utils` is required at `>=0.4.1, <0.5`; the unused `apple-cf`
+  dependency is gone.
+- The coverage audits now say they score a hand-picked sample and list
+  `outputProvider`, `inputHandler` and the user-preset methods as gaps.
+
+### Added
+
+- `AuAudioUnit::instantiate_with_timeout`,
+  `AvAudioUnit::instantiate_with_timeout`, `AuVoiceIo::new_with_timeout` and
+  `DEFAULT_INSTANTIATION_TIMEOUT` (15 s).
+- `AuAudioUnit::add_midi_output_capture` and
+  `add_midi_output_event_list_capture`, returning `AuMidiOutputCapture` and
+  `AuMidiOutputEventListCapture`.
+- `AuPullInput`, `AudioTimeStamp::with_sample_time`, and `AudioTimeStamp:
+  Default`.
+- `examples/17_render_effect.rs`, and tests for effect rendering, bounded
+  captures, context release, parallel initialization, timeouts and exact
+  paths.
+
+### Removed
+
+- `AuAudioUnit::take_render_observer_events`, `remove_render_observer`,
+  `set_midi_output_event_capture_enabled`, `take_captured_midi_output_events`,
+  `set_midi_output_event_list_capture_enabled` and
+  `take_captured_midi_output_event_lists`.
+- `AuParameterTree::take_parameter_observer_events`,
+  `take_parameter_recording_events`, `take_parameter_automation_events` and
+  `remove_parameter_observer`.
+
 ## [0.3.1] - 2026-05-20
 
 - Migrated local `take_string` body to call `doom_fish_utils::ffi_string::take_owned_cstring_c`. Centralises the duplicated FFI take-string pattern fleet-wide. No public API change.

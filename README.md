@@ -2,7 +2,7 @@
 
 Safe Rust bindings for Apple's **`AudioUnit`** / **`AVFAudio`** APIs on macOS.
 
-> **Status:** v0.3.0 adds executor-agnostic async capture streams for `AUAudioUnit` render/MIDI callback surfaces and `AUParameterTree` observer capture on top of the existing advanced synchronous wrappers.
+> **Status:** v0.4.0 makes the render-thread captures lock-free and bounded with owning tokens, lets `render` pull input for effects, makes instantiation timeouts configurable, and serializes audio unit initialization. See `CHANGELOG.md` for the breaking changes.
 
 ## Quick start
 
@@ -107,7 +107,7 @@ Enable the `async` feature for executor-agnostic streams. Each stream owns a cap
 
 ```toml
 [dependencies]
-audiounit = { version = "0.3.0", features = ["async"] }
+audiounit = { version = "0.4", features = ["async"] }
 ```
 
 ```rust,no_run
