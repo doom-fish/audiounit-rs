@@ -9,7 +9,7 @@ description = "Safe Rust bindings for AudioUnit / AVAudioUnit — Apple's Audio 
 authors = ["Per Johansson <per@doom.fish>"]
 keywords = ["audiounit", "audio", "macos", "avfoundation", "apple"]
 categories = ["api-bindings", "os::macos-apis", "multimedia::audio"]
-rust-version = "1.76"
+rust-version = "1.82"
 readme = "README.md"
 build = "build.rs"
 include = [
@@ -40,11 +40,10 @@ default = []
 async = []
 
 [dependencies]
-apple-cf = { version = ">=0.2, <0.10" }
 libc = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-doom-fish-utils = { path = "../doom-fish-utils", version = ">=0.3, <0.4" }
+doom-fish-utils = { path = "../doom-fish-utils", version = ">=0.4.1, <0.5" }
 
 [package.metadata.docs.rs]
 all-features = true
