@@ -37,6 +37,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   null handle, and the timeout message no longer traps on huge timeouts.
 - Legacy `#[repr(C)]` layouts are pinned by compile-time and runtime checks;
   `AudioTimeStamp` is 64 bytes, matching the OS ABI.
+- `build.rs` no longer adds the toolchain's Swift 5.5 back-deployment
+  directory (`usr/lib/swift-5.5/macosx`) to the rpath. The path points into
+  Xcode, so it never made the back-deployment concurrency library available
+  on other machines.
 
 ### Changed
 

@@ -87,9 +87,6 @@ fn link_swift_bridge(swift_build_dir: &str) {
         Ok(output) if output.status.success() => {
             let xcode = String::from_utf8_lossy(&output.stdout).trim().to_string();
             println!(
-                "cargo:rustc-link-arg=-Wl,-rpath,{xcode}/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.5/macosx"
-            );
-            println!(
                 "cargo:rustc-link-arg=-Wl,-rpath,{xcode}/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/macosx"
             );
         }
