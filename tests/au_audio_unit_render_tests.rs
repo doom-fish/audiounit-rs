@@ -117,7 +117,10 @@ fn render_pulls_effect_input_and_bounds_the_observer() -> Result<(), Box<dyn std
     );
     assert!(events.iter().all(|event| event.frame_count == FRAMES));
     assert_eq!(render_observer.dropped_events(), u64::from(RENDERS * 2 - 4));
-    assert!(render_observer.take_events().is_empty());
+    assert_eq!(
+        render_observer.take_events(),
+        [] as [audiounit::AuRenderObserverEvent; 0]
+    );
 
     drop(render_observer);
     render_mono(&unit, &mut output, RENDERS, Some(&mut pull))?;

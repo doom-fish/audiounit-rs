@@ -293,7 +293,7 @@ mod tests {
             vec![6, 7, 8, 9]
         );
         assert_eq!(capture.dropped(), 6);
-        assert!(capture.drain().is_empty());
+        assert_eq!(capture.drain().len(), 0);
         unsafe { (CaptureContext::<AuParameterValueEvent>::RELEASE)(context) };
     }
 
@@ -367,7 +367,7 @@ mod tests {
         assert!(!events[0].truncated);
         assert_eq!(events[1].bytes.len(), MIDI_OUTPUT_INLINE_BYTES);
         assert!(events[1].truncated);
-        assert!(events[2].bytes.is_empty());
+        assert_eq!(events[2].bytes.len(), 0);
         unsafe { (CaptureContext::<MidiOutputRecord>::RELEASE)(context) };
     }
 }

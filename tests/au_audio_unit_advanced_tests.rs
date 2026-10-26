@@ -41,20 +41,29 @@ fn au_audio_unit_host_context_and_capture_smoke() -> Result<(), Box<dyn std::err
     );
 
     let render_token = unit.add_render_observer_capture(16)?;
-    assert!(render_token.take_events().is_empty());
+    assert_eq!(
+        render_token.take_events(),
+        [] as [audiounit::AuRenderObserverEvent; 0]
+    );
     drop(render_token);
     assert!(unit.add_render_observer_capture(0).is_err());
 
     let first = unit.add_midi_output_capture(16)?;
     let second = unit.add_midi_output_capture(16)?;
-    assert!(first.take_events().is_empty());
+    assert_eq!(first.take_events(), [] as [audiounit::AuMidiOutputEvent; 0]);
     drop(first);
-    assert!(second.take_events().is_empty());
+    assert_eq!(
+        second.take_events(),
+        [] as [audiounit::AuMidiOutputEvent; 0]
+    );
     assert_eq!(second.dropped_events(), 0);
     drop(second);
 
     let event_lists = unit.add_midi_output_event_list_capture(16)?;
-    assert!(event_lists.take_events().is_empty());
+    assert_eq!(
+        event_lists.take_events(),
+        [] as [audiounit::AuMidiOutputEventListSummary; 0]
+    );
     drop(event_lists);
 
     Ok(())
@@ -94,9 +103,15 @@ fn au_parameter_observer_capture_smoke() -> Result<(), Box<dyn std::error::Error
         std::thread::sleep(Duration::from_millis(5));
     }
 
-    assert!(!values.is_empty());
-    assert!(!recordings.is_empty());
-    assert!(!automations.is_empty());
+    assert_ne!(values, [] as [audiounit::AuParameterValueEvent; 0]);
+    assert_ne!(
+        recordings,
+        [] as [audiounit::AuRecordedParameterEventInfo; 0]
+    );
+    assert_ne!(
+        automations,
+        [] as [audiounit::AuParameterAutomationEventInfo; 0]
+    );
     assert!(values.iter().all(
         |event| event.address == info.address && (event.value - new_value).abs() < f32::EPSILON
     ));

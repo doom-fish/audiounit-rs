@@ -15,6 +15,6 @@ fn au_voice_io_smoke() -> Result<(), Box<dyn std::error::Error>> {
             support::ducking_level_from_raw(config.ducking_level),
         )?;
     }
-    assert!(!info.av_audio_unit.name.is_empty());
+    assert_ne!(info.av_audio_unit.name, "");
     Ok(())
 }

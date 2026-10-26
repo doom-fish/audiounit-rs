@@ -10,7 +10,7 @@ fn au_parameter_smoke() -> Result<(), Box<dyn std::error::Error>> {
     )?;
     let parameter = support::first_parameter(&unit)?;
     let value = parameter.value();
-    assert!(!parameter.identifier().is_empty());
+    assert_ne!(parameter.identifier(), "");
     let _ = parameter.display_name_with_length(8);
     parameter.set_value(value);
     parameter.set_value_at_host_time(value, 0);

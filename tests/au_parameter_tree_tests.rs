@@ -11,7 +11,7 @@ fn au_parameter_tree_smoke() -> Result<(), Box<dyn std::error::Error>> {
     let tree = unit.parameter_tree().expect("missing parameter tree");
     let info = tree.info()?;
     assert_eq!(info.kind, "tree");
-    assert!(!tree.to_json().is_empty());
+    assert_ne!(tree.to_json(), "");
     assert!(!tree.root_group().all_parameters()?.is_empty());
     Ok(())
 }

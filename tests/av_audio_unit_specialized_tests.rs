@@ -13,7 +13,7 @@ fn av_audio_unit_load_preset_smoke() -> Result<(), Box<dyn std::error::Error>> {
     target
         .as_av_audio_unit()
         .load_audio_unit_preset(&preset_path)?;
-    assert!(!target.info()?.effect.av_audio_unit.name.is_empty());
+    assert_ne!(target.info()?.effect.av_audio_unit.name, "");
 
     let missing_path =
         preset_path.with_file_name(format!("missing-preset-{}.aupreset", std::process::id()));
@@ -40,7 +40,7 @@ fn av_audio_unit_sampler_and_eq_smoke() -> Result<(), Box<dyn std::error::Error>
     midi.start_note(60, 96, 0);
     midi.stop_note(60, 0);
     let sampler_info = sampler.info()?;
-    assert!(!sampler_info.midi_instrument.av_audio_unit.name.is_empty());
+    assert_ne!(sampler_info.midi_instrument.av_audio_unit.name, "");
 
     let eq = AvAudioUnitEq::new(2)?;
     eq.set_global_gain(3.0);
@@ -66,13 +66,13 @@ fn av_audio_unit_distortion_reverb_and_time_effects_smoke() -> Result<(), Box<dy
     distortion.set_pre_gain(-12.0);
     distortion.set_wet_dry_mix(65.0);
     distortion.set_bypass(false);
-    assert!(!distortion.info()?.effect.av_audio_unit.name.is_empty());
+    assert_ne!(distortion.info()?.effect.av_audio_unit.name, "");
 
     let reverb = AvAudioUnitReverb::new()?;
     reverb.load_factory_preset(AvAudioUnitReverbPreset::LargeHall);
     reverb.set_wet_dry_mix(40.0);
     reverb.set_bypass(false);
-    assert!(!reverb.info()?.effect.av_audio_unit.name.is_empty());
+    assert_ne!(reverb.info()?.effect.av_audio_unit.name, "");
 
     let generic = AvAudioUnitTimeEffect::new(support::varispeed_description())?;
     generic.set_bypass(false);
